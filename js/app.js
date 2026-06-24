@@ -1,13 +1,14 @@
 // ==========================================
-// FIREBASE CONFIG (GANTI DENGAN MILIKMU)
+// FIREBASE CONFIG (PROJECT BARU)
 // ==========================================
 const firebaseConfig = {
-    apiKey: "AIzaSyXXXXXXXXXXXXXXX",
-    authDomain: "apotek-aulia.firebaseapp.com",
-    projectId: "apotek-aulia",
-    storageBucket: "apotek-aulia.appspot.com",
-    messagingSenderId: "123456789",
-    appId: "1:123456789:web:abcdef"
+    apiKey: "AIzaSyD0FKYfxhmf7Rqf56ab0ENVOCUzx4U8gzQ",
+    authDomain: "aulia-apotek-klinik.firebaseapp.com",
+    projectId: "aulia-apotek-klinik",
+    storageBucket: "aulia-apotek-klinik.firebasestorage.app",
+    messagingSenderId: "1083434093638",
+    appId: "1:1083434093638:web:d61f6ca9786ecbd9110e47",
+    measurementId: "G-24HLYRDEGG"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -30,8 +31,10 @@ window.Utils = {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     },
     toast: (msg, type = 'info') => {
-        // Fungsi toast sederhana, nanti bisa dikembangkan
-        alert((type === 'error' ? 'ERROR: ' : '') + msg);
+        // Sementara pakai alert dulu, nanti bisa kita upgrade jadi toast cantik
+        if(type === 'error') alert('❌ ERROR: ' + msg);
+        else if(type === 'success') alert('✅ ' + msg);
+        else alert('ℹ️ ' + msg);
     },
     showLoading: (containerId) => {
         var el = document.getElementById(containerId);
@@ -100,10 +103,10 @@ const menuStructure = {
 
 // Akses berdasarkan Role (SESUAI FINAL BLUEPRINT)
 const roleAccess = {
-    klinik: ['klinik', 'manajemen.absensi'], // absensi sendiri
-    apotek: ['apotek', 'laporan.pengeluaran', 'manajemen.absensi'], // pengeluaran harian (pending)
-    admin: ['klinik', 'apotek', 'laporan', 'manajemen', 'pengaturan'], // approve pengeluaran
-    keuangan: ['klinik', 'apotek', 'laporan', 'manajemen', 'keuangan', 'pengaturan'] // FULL ACCESS (PSA)
+    klinik: ['klinik', 'manajemen.absensi'], 
+    apotek: ['apotek', 'laporan.pengeluaran', 'manajemen.absensi'], 
+    admin: ['klinik', 'apotek', 'laporan', 'manajemen', 'pengaturan'], 
+    keuangan: ['klinik', 'apotek', 'laporan', 'manajemen', 'keuangan', 'pengaturan'] 
 };
 
 function renderSidebar(role) {
@@ -121,7 +124,6 @@ function renderSidebar(role) {
     ];
 
     sections.forEach(section => {
-        // Cek apakah role punya akses ke section ini (bisa full section atau spesifik sub-menu)
         const hasAccess = allowed.includes(section.key) || 
                           allowed.some(a => a.startsWith(section.key));
         if (!hasAccess) return;
@@ -131,7 +133,6 @@ function renderSidebar(role) {
         html += `<ul class="space-y-1">`;
         
         menuStructure[section.key].forEach(menu => {
-            // Cek akses spesifik (misal: manajemen.absensi)
             const specificAccess = allowed.find(a => a === `${section.key}.${menu.id}`);
             if (!allowed.includes(section.key) && !specificAccess) return;
 
@@ -155,7 +156,6 @@ function renderSidebar(role) {
 let currentModule = null;
 
 window.navigateTo = async function(modulePath, title) {
-    // Update UI
     document.getElementById('page-title').textContent = title;
     document.getElementById('app-content').innerHTML = '<div class="flex justify-center py-20"><div class="spinner"></div></div>';
     
@@ -166,15 +166,13 @@ window.navigateTo = async function(modulePath, title) {
     const activeBtn = document.querySelector(`[data-page="${modulePath.split('/')[1]}"]`);
     if(activeBtn) activeBtn.classList.add('bg-primary-50', 'dark:bg-slate-700', 'text-primary-600', 'dark:text-primary-400', 'font-semibold');
 
-    // Close mobile sidebar
     if(window.innerWidth < 1024) toggleMobileSidebar();
 
     try {
-        // Dynamically load the JS file
+        // Dinamis load file JS berdasarkan menu yang diklik
         const { default: Module } = await import(`./${modulePath}.js`);
         currentModule = Module;
         
-        // Render & Init
         document.getElementById('app-content').innerHTML = Module.render();
         lucide.createIcons();
         if (Module.init) Module.init();
@@ -183,8 +181,8 @@ window.navigateTo = async function(modulePath, title) {
         document.getElementById('app-content').innerHTML = `
             <div class="text-center py-20">
                 <i data-lucide="file-x" class="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4"></i>
-                <h3 class="text-lg font-bold text-slate-500">Halaman Belum Tersedia</h3>
-                <p class="text-sm text-slate-400">Module: js/${modulePath}.js belum dibuat.</p>
+                <h3 class="text-lg font-bold text-slate-500 dark:text-slate-400">Halaman Belum Tersedia</h3>
+                <p class="text-sm text-slate-400 dark:text-slate-500">Module: js/${modulePath}.js belum dibuat.</p>
             </div>`;
         lucide.createIcons();
     }
@@ -201,17 +199,16 @@ function toggleMobileSidebar() {
 }
 
 // ==========================================
-// AUTH LISTENER (Simulasi dulu, nanti ganti real Auth)
+// AUTH LISTENER (Simulasi sementara)
 // ==========================================
-// Untuk sekarang, biar bisa keliatan, kita set manual Keuangan (Full Access)
-// Nanti tinggal ganti ini dengan: auth.onAuthStateChanged(user => { ... })
 function startApp(role = 'keuangan', name = 'Akun PSA') {
     document.getElementById('user-name').textContent = name;
     document.getElementById('user-role').textContent = role.charAt(0).toUpperCase() + role.slice(1);
     document.getElementById('user-avatar').textContent = name.charAt(0);
     
     renderSidebar(role);
-    navigateTo('dashboard', 'Dashboard'); // Arahkan ke dashboard pertama kali
+    // Arahkan ke halaman pembagian hasil dulu untuk testing pengisian
+    navigateTo('pengaturan/pembagian', 'Pembagian Hasil'); 
 }
 
 // Jalankan Aplikasi

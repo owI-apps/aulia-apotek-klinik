@@ -235,18 +235,18 @@ window.AppPengaturanPembagian = {
     },
 
     // --- 8. HITUNG INFO PSA SECARA REALTIME ---
-    hitungInfoPSA: function() {
+        hitungInfoPSA: function() {
         var el = document.getElementById('psa-margin-info');
         if(!el) return;
 
-        // 1. Resep Klinik
+        // 1. Resep Klinik (FIX: ditambahkan 'pb-' di depannya)
         var psaResepKlinik = 0;
-        document.querySelectorAll('[id^="rk-nilai-"]').forEach((input, i) => {
+        document.querySelectorAll('[id^="pb-rk-nilai-"]').forEach((input, i) => {
             var nilai = parseFloat(input.value) || 0;
-            var jm = parseFloat(document.getElementById('rk-jm-'+i).value) || 0;
-            var jd = parseFloat(document.getElementById('rk-jd-'+i).value) || 0;
-            var poolK = parseFloat(document.getElementById('rk-poolKlinik-'+i).value) || 0;
-            var poolA = parseFloat(document.getElementById('rk-poolApotek-'+i).value) || 0;
+            var jm = parseFloat(document.getElementById('pb-rk-jm-'+i)?.value) || 0;
+            var jd = parseFloat(document.getElementById('pb-rk-jd-'+i)?.value) || 0;
+            var poolK = parseFloat(document.getElementById('pb-rk-poolKlinik-'+i)?.value) || 0;
+            var poolA = parseFloat(document.getElementById('pb-rk-poolApotek-'+i)?.value) || 0;
             psaResepKlinik += (nilai - jm - jd - poolK - poolA);
         });
 
@@ -255,17 +255,17 @@ window.AppPengaturanPembagian = {
         var rlDokter = parseFloat(document.getElementById('pb-resepLuar_potonganDokter')?.value) || 0;
         var psaResepLuar = rlNilai - rlDokter;
 
-        // 3. Tindakan Klinik (Total persen harus 100, sisanya PSA)
+        // 3. Tindakan Klinik
         var totTK = 0;
         document.querySelectorAll('[id^="slot-persen-tindakanKlinik-"]').forEach(i => totTK += parseFloat(i.value) || 0);
         var psaTK = 100 - totTK;
 
-        // 4. Tindakan Apotek (Total persen harus 100, sisanya PSA)
+        // 4. Tindakan Apotek
         var totTA = 0;
         document.querySelectorAll('[id^="slot-persen-tindakanApotek-"]').forEach(i => totTA += parseFloat(i.value) || 0);
         var psaTA = 100 - totTA;
 
-        // 7. Uang Makan (Total persen harus 100, sisanya PSA)
+        // 7. Uang Makan
         var totUM = 0;
         document.querySelectorAll('[id^="slot-persen-uangMakan-"]').forEach(i => totUM += parseFloat(i.value) || 0);
         var psaUM = 100 - totUM;
@@ -278,10 +278,9 @@ window.AppPengaturanPembagian = {
                 <div class="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg"><span class="text-xs text-teal-600 dark:text-teal-400">d. Sisa Tindakan Apotek</span><p class="font-bold text-teal-800 dark:text-teal-300">${psaTA}%</p></div>
                 <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg md:col-span-2"><span class="text-xs text-orange-600 dark:text-orange-400">e. Sisa Uang Makan</span><p class="font-bold text-orange-800 dark:text-orange-300">${psaUM}%</p></div>
             </div>
-            <p class="text-xs text-slate-400 mt-3 italic">*Nilai dihitung realtime berdasarkan input di atas. Jika minus, berarti pembagian melebihi sumber pendapatan.</p>
+            <p class="text-xs text-slate-400 mt-3 italic">*Nilai dihitung realtime. Jika minus, berarti pembagian melebihi sumber pendapatan.</p>
         `;
     },
-
     // --- SIMPAN KE FIRESTORE ---
     simpan: function() {
         var d = this.data;

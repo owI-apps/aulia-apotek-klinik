@@ -31,18 +31,34 @@ window.AppPengaturanTindakan = {
         return html;
     },
 
-    init: function() {
-        db.collection('masterTindakan').orderBy('kategori').orderBy('nama').get().then(snap => {
+        init: function() {
+        // HAPUS orderBy('kategori') agar tidak butuh Composite Index Firebase
+        db.collection('masterTindakan').orderBy('nama').get().then(snap => {
             AppPengaturanTindakan.data = [];
-            snap.forEach(doc => { var d = doc.data(); d.id = doc.id; AppPengaturanTindakan.data.push(d); });
+            snap.forEach(doc => { 
+                var d = doc.data(); 
+                d.id = doc.id; 
+                AppPengaturanTindakan.data.push(d); 
+            });
             
-            // Jika database kosong, seed data awal sesuai permintaan bro
+            // Urutkan Kategori manual pakai JavaScript (Klinik dulu, baru Apotek)
+            AppPengaturanTindakan.data.sort((a, b) => {
+                if (a.kategori < b.kategori) return -1;
+                if (a.kategori > b.kategori) return 1;
+                return 0;
+            });
+
+            // Jika database benar-benar kosong, seed data awal
             if (AppPengaturanTindakan.data.length === 0) {
                 AppPengaturanTindakan.seedDefaultData();
             } else {
+                // Langsung paksa render
                 AppPengaturanTindakan.renderList();
             }
-        }).catch(err => Utils.toast('Gagal memuat: ' + err.message, 'error'));
+        }).catch(err => {
+            console.error(err);
+            Utils.toast('Gagal memuat: ' + err.message, 'error');
+        });
     },
 
             seedDefaultData: function() {

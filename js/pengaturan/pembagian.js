@@ -202,24 +202,28 @@ window.AppPengaturanPembagian = {
         return html;
     },
 
-    addSlotTo: function(parentKey, docIndex, slotKey) {
+        addSlotTo: function(parentKey, docIndex, slotKey) {
         var newSlot = { karyawanId: '', persen: 0, isTHR: false };
         
-        // Logic untuk menentukan menaruh slot baru di mana
         if (parentKey === 'resepKlinik') {
             this.data.resepKlinik[docIndex][slotKey].push(newSlot);
         } else {
-            // Untuk tindakanKlinik, tindakanApotek, omzet, transport, uangMakan
-            this.data[parentKey].slot.push(newSlot);
+            var target = this.data[parentKey];
+            
+            // Cek apakah targetnya Array (Tindakan) atau Object punya .slot (Omzet/Transport/UM)
+            if (Array.isArray(target)) {
+                target.push(newSlot); 
+            } else if (target && Array.isArray(target.slot)) {
+                target.slot.push(newSlot); 
+            }
         }
-        this.renderForm(); // Re-render agar index tidak error
+        this.renderForm(); 
     },
 
-    removeSlotRow: function(rowId) {
-        // Parse "rk-klinik-0-1" atau "tindakanKlinik-0"
+        removeSlotRow: function(rowId) {
         var parts = rowId.split('-');
         if (parts[0] === 'rk') {
-            var type = parts[1]; // klinik atau apotek
+            var type = parts[1]; 
             var docIdx = parseInt(parts[2]);
             var slotIdx = parseInt(parts[3]);
             var slotKey = (type === 'klinik') ? 'slotKaryKlinik' : 'slotKaryApotek';
@@ -227,8 +231,13 @@ window.AppPengaturanPembagian = {
         } else {
             var parentKey = parts[0];
             var slotIdx = parseInt(parts[1]);
-            if(this.data[parentKey] && this.data[parentKey].slot) {
-                this.data[parentKey].slot.splice(slotIdx, 1);
+            var target = this.data[parentKey];
+            
+            // Deteksi tipe data saat hapus
+            if (Array.isArray(target)) {
+                target.splice(slotIdx, 1); 
+            } else if (target && Array.isArray(target.slot)) {
+                target.slot.splice(slotIdx, 1); 
             }
         }
         this.renderForm();

@@ -52,6 +52,7 @@ window.AppPengaturanPembagian = {
         return {
             resepKlinik: [], // Array of doctor configs
             resepLuar: { nilaiResep: 0, potonganDokter: 0 },
+            marginResep: 35,
             tindakanKlinik: [], // Array of slots
             tindakanApotek: [], // Array of slots
             tunjanganOmzet: { persen: 0, slot: [] },
@@ -79,6 +80,16 @@ window.AppPengaturanPembagian = {
         html += AppPengaturanPembagian.inputField('Nilai Resep', 'resepLuar_nilaiResep', d.resepLuar.nilaiResep, 'Rp');
         html += AppPengaturanPembagian.inputField('Potongan Dokter', 'resepLuar_potonganDokter', d.resepLuar.potonganDokter, 'Rp');
         html += '</div></div>';
+
+        // MARGIN OBAT RESEP
+        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
+        html += '<h3 class="font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2 text-lg mb-3"><i data-lucide="percent" class="w-5 h-5"></i> Margin Harga Obat Resep</h3>';
+        html += '<div class="max-w-xs">' + AppPengaturanPembagian.inputField('Persen dari HPP', 'marginResep', d.marginResep, '%') + '</div>';
+        html += '<p class="text-xs text-slate-400 mt-3 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-700">';
+        html += 'ℹ️ <strong>Berlaku untuk Resep Klinik & Resep Luar.</strong><br>';
+        html += 'Harga Jual Obat = HPP + ' + (d.marginResep || 0) + '%.<br>';
+        html += 'Jika diisi <strong>0</strong>, maka harga jual obat resep akan mengikuti harga jual manual (seperti obat bebas).';
+        html += '</p></div>';
 
         // 3. TINDAKAN KLINIK
         html += AppPengaturanPembagian.renderSlotSection('tindakanKlinik', '3. Tindakan Klinik (Tuslah)', 'purple', d.tindakanKlinik, true);
@@ -347,6 +358,9 @@ window.AppPengaturanPembagian = {
             nilaiResep: parseFloat(document.getElementById('pb-resepLuar_nilaiResep').value) || 0,
             potonganDokter: parseFloat(document.getElementById('pb-resepLuar_potonganDokter').value) || 0
         };
+
+        // Margin Resep
+        d.marginResep = parseFloat(document.getElementById('pb-marginResep').value) || 0;
 
         // 3 & 4. Tindakan (Array of slots langsung)
         d.tindakanKlinik = this.collectSlotRows('tindakanKlinik');

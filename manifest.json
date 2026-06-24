@@ -1,0 +1,11 @@
+{
+  "name": "Aulia Apotek & Klinik",
+  "short_name": "Aulia",
+  "description": "Sistem Manajemen Terpadu untuk Apotek & Klinik",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": []
+}

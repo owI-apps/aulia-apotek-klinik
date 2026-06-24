@@ -164,11 +164,14 @@ function loadScript(url) {
             loadedScripts[url] = true;
             resolve();
         };
-        script.onerror = () => reject(new Error('File tidak ditemukan di: ' + url));
+        script.onerror = () => {
+            // Ini akan nge-print URL EXACT yang gagal, biar kita tau masalahnya dimana
+            console.error('FILE TIDAK DITEMUKAN DI: ' + window.location.origin + '/' + url);
+            reject(new Error('File tidak ditemukan di: ' + url));
+        };
         document.head.appendChild(script);
     });
 }
-
 window.navigateTo = async function(modulePath, title) {
     document.getElementById('page-title').textContent = title;
     document.getElementById('app-content').innerHTML = '<div class="flex justify-center py-20"><div class="spinner"></div></div>';

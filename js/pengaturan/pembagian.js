@@ -1,7 +1,6 @@
 /**
  * js/pengaturan/pembagian.js
- * Otak dari sistem payroll.
- * Mengatur nilai tetap resep, persentase tindakan, dan Slot Karyawan (Dropdown).
+ * REVOLUSI SKEMA: Pembagian sangat detail per orang & per dokter.
  */
 
 window.AppPengaturanPembagian = {
@@ -10,55 +9,41 @@ window.AppPengaturanPembagian = {
     karyawanList: [],
 
     render: function() {
-        var html = '<div class="page-enter max-w-3xl">';
+        var html = '<div class="page-enter max-w-4xl">';
         html += '  <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Pengaturan Pembagian Hasil</h2>';
-        html += '  <p class="text-sm text-gray-500 dark:text-slate-400 mb-6">Konfigurasi pembagian pendapatan untuk payroll bulanan</p>';
+        html += '  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Detail pembagian pendapatan, tunjangan, dan perhitungan margin PSA</p>';
         html += '  <div id="pembagian-content"><div class="flex justify-center py-10"><div class="spinner"></div></div></div>';
         html += '</div>';
         return html;
     },
 
     init: function() {
-        // Load Karyawan Aktif DAN Pengaturan secara paralel
         var pKaryawan = db.collection('karyawan').where('status', '==', 'aktif').get();
         var pConfig = db.collection('pengaturanPembagian').doc('global').get();
 
         Promise.all([pKaryawan, pConfig]).then(function(results) {
-            // Parse Karyawan
             AppPengaturanPembagian.karyawanList = [];
-            results[0].forEach(function(doc) {
-                var d = doc.data(); d.id = doc.id;
-                AppPengaturanPembagian.karyawanList.push(d);
-            });
+            results[0].forEach(function(doc) { var d = doc.data(); d.id = doc.id; AppPengaturanPembagian.karyawanList.push(d); });
 
-            // Parse Config
             if (results[1].exists) {
                 AppPengaturanPembagian.data = results[1].data();
-                AppPengaturanPembagian.renderForm();
             } else {
-                // Jika belum ada data sama sekali, inisialisasi default
-                Utils.toast('Belum ada pengaturan. Membuat data awal...', 'info');
                 AppPengaturanPembagian.data = AppPengaturanPembagian.getDefaultData();
-                db.collection('pengaturanPembagian').doc('global').set(AppPengaturanPembagian.data)
-                    .then(function() { AppPengaturanPembagian.renderForm(); });
+                db.collection('pengaturanPembagian').doc('global').set(AppPengaturanPembagian.data);
             }
-        }).catch(function(err) {
-            Utils.toast('Gagal memuat: ' + err.message, 'error');
-        });
+            AppPengaturanPembagian.renderForm();
+        }).catch(function(err) { Utils.toast('Gagal memuat: ' + err.message, 'error'); });
     },
 
     getDefaultData: function() {
         return {
-            resep: { nilaiResep: 0, jm: 0, jd: 0, karyKlinik: 0, karyApotek: 0, psa: 0 },
-            resepLuar: { nilaiResep: 0, dokter: 0, psa: 0 },
-            tindakanKlinik: { dokter: 0, karyKlinik: 0 },
-            tindakanApotek: { karyApotek: 0, psa: 0 },
-            tunjanganOmzet: { persen: 0 },
-            uangMakan: { persenDariPembulatan: 100 }, // BARU LOGIKA
-            transport: { nominalTotal: 0 },
-            marginResep: 0,
-            slotKaryawanKlinik: [],
-            slotKaryawanApotek: []
+            resepKlinik: [], // Array of doctor configs
+            resepLuar: { nilaiResep: 0, potonganDokter: 0 },
+            tindakanKlinik: [], // Array of slots
+            tindakanApotek: [], // Array of slots
+            tunjanganOmzet: { persen: 0, slot: [] },
+            transport: { total: 0, slot: [] },
+            uangMakan: { slot: [] }
         };
     },
 
@@ -66,248 +51,308 @@ window.AppPengaturanPembagian = {
         var d = AppPengaturanPembagian.data;
         var html = '';
 
-        // ----- RESEP KLINIK -----
+        // 1. RESEP KLINIK
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-blue-600"><i data-lucide="file-text" class="w-5 h-5"></i> Resep Klinik</h3>';
-        html += '  <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">';
-        html += AppPengaturanPembagian.inputField('Nilai Resep (Otomatis)', 'resep_nilaiResep', d.resep.nilaiResep, 'Rp');
-        html += AppPengaturanPembagian.inputField('Jasa Medis (JM)', 'resep_jm', d.resep.jm, 'Rp');
-        html += AppPengaturanPembagian.inputField('Jasa Dokter (JD)', 'resep_jd', d.resep.jd, 'Rp');
-        html += AppPengaturanPembagian.inputField('Karyawan Klinik', 'resep_karyKlinik', d.resep.karyKlinik, 'Rp');
-        html += AppPengaturanPembagian.inputField('Karyawan Apotek', 'resep_karyApotek', d.resep.karyApotek, 'Rp');
-        html += AppPengaturanPembagian.inputField('PSA (Laba Apotek)', 'resep_psa', d.resep.psa, 'Rp');
-        html += '  </div>';
-        html += '  <p class="text-xs text-slate-400 mt-3 bg-slate-50 dark:bg-slate-900 p-2 rounded">ℹ️ Sisa dari Nilai Resep setelah dipotong semua komponen di atas langsung menjadi Laba Apotek.</p>';
-        html += '</div>';
+        html += '<div class="flex justify-between items-center mb-4"><h3 class="font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2 text-lg"><i data-lucide="file-text" class="w-5 h-5"></i> 1. Resep Klinik</h3><button onclick="AppPengaturanPembagian.addResepKlinik()" class="text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 font-medium">+ Tambah Skema Dokter</button></div>';
+        html += '<div id="resep-klinik-container">';
+        if(d.resepKlinik.length === 0) html += '<p class="text-sm text-slate-400 italic p-2">Belum ada skema.</p>';
+        else d.resepKlinik.forEach((doc, i) => html += AppPengaturanPembagian.renderResepKlinikBlock(i, doc));
+        html += '</div></div>';
 
-        // ----- RESEP LUAR -----
+        // 2. RESEP LUAR
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-green-600"><i data-lucide="file-plus" class="w-5 h-5"></i> Resep Luar</h3>';
-        html += '  <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">';
-        html += AppPengaturanPembagian.inputField('Nilai Resep (Otomatis)', 'resepLuar_nilaiResep', d.resepLuar.nilaiResep, 'Rp');
-        html += AppPengaturanPembagian.inputField('Dokter Pemberi Resep', 'resepLuar_dokter', d.resepLuar.dokter, 'Rp');
-        html += AppPengaturanPembagian.inputField('PSA (Laba Apotek)', 'resepLuar_psa', d.resepLuar.psa, 'Rp');
-        html += '  </div>';
-        html += '</div>';
+        html += '<h3 class="font-semibold text-green-600 dark:text-green-400 flex items-center gap-2 text-lg mb-4"><i data-lucide="file-plus" class="w-5 h-5"></i> 2. Resep Luar</h3>';
+        html += '<div class="grid grid-cols-2 gap-4 max-w-md">';
+        html += AppPengaturanPembagian.inputField('Nilai Resep', 'resepLuar_nilaiResep', d.resepLuar.nilaiResep, 'Rp');
+        html += AppPengaturanPembagian.inputField('Potongan Dokter', 'resepLuar_potonganDokter', d.resepLuar.potonganDokter, 'Rp');
+        html += '</div></div>';
 
-        // ----- TINDAKAN KLINIK -----
+        // 3. TINDAKAN KLINIK
+        html += AppPengaturanPembagian.renderSlotSection('tindakanKlinik', '3. Tindakan Klinik (Tuslah)', 'purple', d.tindakanKlinik, true);
+
+        // 4. TINDAKAN APOTEK
+        html += AppPengaturanPembagian.renderSlotSection('tindakanApotek', '4. Tindakan Apotek (Tuslah)', 'teal', d.tindakanApotek, true);
+
+        // 5. TUNJANGAN OMZET
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-purple-600"><i data-lucide="stethoscope" class="w-5 h-5"></i> Tindakan Klinik</h3>';
-        html += '  <div class="grid grid-cols-2 gap-3">';
-        html += AppPengaturanPembagian.inputField('Dokter', 'tindakanKlinik_dokter', d.tindakanKlinik.dokter, '%');
-        html += AppPengaturanPembagian.inputField('Karyawan Klinik', 'tindakanKlinik_karyKlinik', d.tindakanKlinik.karyKlinik, '%');
-        html += '  </div>';
+        html += '<h3 class="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2 text-lg mb-4"><i data-lucide="trending-up" class="w-5 h-5"></i> 5. Tunjangan Omzet</h3>';
+        html += '<div class="mb-4 w-32">' + AppPengaturanPembagian.inputField('Persen Margin Obat', 'omzet_persen', d.tunjanganOmzet.persen, '%') + '</div>';
+        html += AppPengaturanPembagian.renderSlotRows('omzet', d.tunjanganOmzet.slot, false);
         html += '</div>';
 
-        // ----- TINDAKAN APOTEK -----
+        // 6. TUNJANGAN TRANSPORT
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-teal-600"><i data-lucide="syringe" class="w-5 h-5"></i> Tindakan Apotek</h3>';
-        html += '  <div class="grid grid-cols-2 gap-3">';
-        html += AppPengaturanPembagian.inputField('Karyawan Apotek', 'tindakanApotek_karyApotek', d.tindakanApotek.karyApotek, '%');
-        html += AppPengaturanPembagian.inputField('PSA', 'tindakanApotek_psa', d.tindakanApotek.psa, '%');
-        html += '  </div>';
+        html += '<h3 class="font-semibold text-sky-600 dark:text-sky-400 flex items-center gap-2 text-lg mb-4"><i data-lucide="truck" class="w-5 h-5"></i> 6. Tunjangan Transport</h3>';
+        html += '<div class="mb-4 w-32">' + AppPengaturanPembagian.inputField('Total Dana', 'transport_total', d.transport.total, 'Rp') + '</div>';
+        html += AppPengaturanPembagian.renderSlotRows('transport', d.transport.slot, false);
         html += '</div>';
 
-        // ----- TUNJANGAN OMZET & MARGIN -----
-        html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">';
-        
-        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-emerald-600"><i data-lucide="trending-up" class="w-5 h-5"></i> Tunjangan Omzet</h3>';
-        html += AppPengaturanPembagian.inputField('Persen dari Laba Obat', 'tunjanganOmzet_persen', d.tunjanganOmzet.persen, '%');
+        // 7. TUNJANGAN UANG MAKAN
+        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
+        html += '<h3 class="font-semibold text-orange-600 dark:text-orange-400 flex items-center gap-2 text-lg mb-4"><i data-lucide="utensils" class="w-5 h-5"></i> 7. Tunjangan Uang Makan</h3>';
+        html += '<p class="text-xs text-slate-400 mb-3 bg-slate-50 dark:bg-slate-900 p-2 rounded">Sumber: Otomatis dari total pembulatan transaksi. Sisa setelah dibagi masuk ke PSA.</p>';
+        html += AppPengaturanPembagian.renderSlotRows('uangMakan', d.uangMakan.slot, false);
         html += '</div>';
 
-        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-rose-600"><i data-lucide="percent" class="w-5 h-5"></i> Margin Obat Resep</h3>';
-        html += AppPengaturanPembagian.inputField('Persen dari HPP', 'marginResep', d.marginResep, '%');
-        html += '  <p class="text-xs text-slate-400 mt-2">Harga Jual Obat Resep = HPP × (1 + margin%)</p>';
-        html += '</div>';
-        html += '</div>';
-
-        // ----- UANG MAKAN & TRANSPORT -----
-        html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">';
-        
-        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-orange-600"><i data-lucide="utensils" class="w-5 h-5"></i> Uang Makan</h3>';
-        html += AppPengaturanPembagian.inputField('Persen dari Pembulatan', 'uangMakan_persenDariPembulatan', d.uangMakan.persenDariPembulatan, '%');
-        html += '  <p class="text-xs text-slate-400 mt-2">Diambil dari total pembulatan transaksi, lalu dibagi rata ke semua karyawan.</p>';
+        // 8. TABEL MARGIN PSA (READONLY INFO)
+        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-6">';
+        html += '<h3 class="font-semibold text-gray-800 dark:text-white flex items-center gap-2 text-lg mb-4"><i data-lucide="landmark" class="w-5 h-5 text-slate-600"></i> 8. Pendapatan PSA (Margin Otomatis)</h3>';
+        html += '<div id="psa-margin-info" class="text-sm space-y-2 text-slate-600 dark:text-slate-300"></div>';
         html += '</div>';
 
-        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2 text-sky-600"><i data-lucide="truck" class="w-5 h-5"></i> Transport</h3>';
-        html += AppPengaturanPembagian.inputField('Total Dana Transport', 'transport_nominalTotal', d.transport.nominalTotal, 'Rp');
-        html += '  <p class="text-xs text-slate-400 mt-2">Dibagi rata hanya untuk Karyawan Apotek.</p>';
-        html += '</div>';
-        html += '</div>';
-
-        // ----- SLOT KARYAWAN -----
-        html += AppPengaturanPembagian.renderSlotSection('klinik', 'Slot Pembagian Karyawan Klinik', 'Distribusi dari Pool Resep Klinik & Tuslah Klinik', 'indigo', d.slotKaryawanKlinik);
-        html += AppPengaturanPembagian.renderSlotSection('apotek', 'Slot Pembagian Karyawan Apotek', 'Distribusi dari Pool Tuslah Apotek & Tunjangan Omzet', 'amber', d.slotKaryawanApotek);
-
-        // ----- TOMBOL SIMPAN -----
-        html += '<div class="flex justify-end sticky bottom-6 z-10">';
-        html += '  <button onclick="AppPengaturanPembagian.simpan()" class="bg-primary-600 hover:bg-primary-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all text-sm flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Simpan Semua Pengaturan</button>';
-        html += '</div>';
+        // TOMBOL SIMPAN
+        html += '<div class="flex justify-end sticky bottom-6 z-10"><button onclick="AppPengaturanPembagian.simpan()" class="bg-primary-600 hover:bg-primary-700 text-white font-semibold px-8 py-3 rounded-xl shadow-lg transition-all text-sm flex items-center gap-2"><i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan</button></div>';
 
         document.getElementById('pembagian-content').innerHTML = html;
         lucide.createIcons();
+        AppPengaturanPembagian.hitungInfoPSA();
     },
 
-    renderSlotSection: function(tipe, title, desc, color, slots) {
-        var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
-        html += '  <h3 class="font-semibold text-gray-800 dark:text-white mb-1 flex items-center gap-2 text-' + color + '-600"><i data-lucide="users" class="w-5 h-5"></i> ' + title + '</h3>';
-        html += '  <p class="text-xs text-slate-400 mb-4">' + desc + '</p>';
-        html += '  <div id="slots-' + tipe + '" class="space-y-2">';
-        
-        if (slots.length === 0) {
-            html += '<p class="text-sm text-slate-400 italic py-2">Belum ada slot.</p>';
-        } else {
-            for (var i = 0; i < slots.length; i++) {
-                html += AppPengaturanPembagian.renderSlotRow(tipe, i, slots[i]);
-            }
-        }
-        
-        html += '  </div>';
-        html += '  <button onclick="AppPengaturanPembagian.addSlot(\'' + tipe + '\')" class="mt-3 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 font-medium flex items-center gap-1"><i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Slot</button>';
-        html += '</div>';
-        return html;
+    // --- HELPERS ---
+    inputField: function(label, id, value, suffix) {
+        return '<div class="mb-1"><label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">' + label + '</label><div class="relative"><input type="number" id="pb-' + id + '" value="' + (value || 0) + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm pr-8 focus:ring-2 focus:ring-primary-500 outline-none" oninput="AppPengaturanPembagian.hitungInfoPSA()"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400">' + suffix + '</span></div></div>';
     },
 
-    renderSlotRow: function(tipe, index, slot) {
-        var karList = AppPengaturanPembagian.karyawanList;
-        var html = '<div id="slot-row-' + tipe + '-' + index + '" class="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-100 dark:border-slate-700">';
-        
-        // Dropdown Karyawan
-        html += '<select id="slot-' + tipe + '-id-' + index + '" class="w-full sm:w-1/3 px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-sm">';
-        html += '<option value="">-- Pilih Karyawan --</option>';
-        for (var k = 0; k < karList.length; k++) {
-            var kar = karList[k];
-            var selected = (slot.karyawanId === kar.id) ? ' selected' : '';
-            html += '<option value="' + kar.id + '"' + selected + '>' + Utils.escapeHtml(kar.nama) + ' (' + Utils.escapeHtml(kar.departemen || '-') + ')</option>';
-        }
+    dropdownKaryawan: function(id, selectedId) {
+        var html = '<select id="' + id + '" class="w-full px-2 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm">';
+        html += '<option value="">-- Pilih --</option>';
+        this.karyawanList.forEach(k => {
+            var sel = (k.id === selectedId) ? ' selected' : '';
+            html += '<option value="' + k.id + '"' + sel + '>' + Utils.escapeHtml(k.nama) + ' (' + Utils.escapeHtml(k.departemen || '-') + ')</option>';
+        });
         html += '</select>';
+        return html;
+    },
 
-        // Input Persen
-        html += '<div class="flex items-center gap-2 w-full sm:w-1/4">';
-        html += '<input type="number" id="slot-' + tipe + '-persen-' + index + '" value="' + (slot.persen || 0) + '" placeholder="%" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-sm text-center">';
-        html += '<span class="text-xs text-slate-400 whitespace-nowrap">%</span>';
+    // --- 1. RESEP KLINIK (COMPLEX NESTED) ---
+    addResepKlinik: function() {
+        this.data.resepKlinik.push({ dokterId: '', nilaiResep: 0, jm: 0, jd: 0, poolKaryKlinik: 0, slotKaryKlinik: [], poolKaryApotek: 0, slotKaryApotek: [] });
+        this.renderForm();
+    },
+
+    removeResepKlinik: function(index) {
+        if(confirm('Hapus skema dokter ini?')) {
+            this.data.resepKlinik.splice(index, 1);
+            this.renderForm();
+        }
+    },
+
+    renderResepKlinikBlock: function(index, doc) {
+        var html = '<div class="border border-slate-200 dark:border-slate-600 rounded-lg p-4 mb-4 bg-slate-50/50 dark:bg-slate-900/30 relative">';
+        html += '<button onclick="AppPengaturanPembagian.removeResepKlinik(' + index + ')" class="absolute top-3 right-3 text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
+        
+        // Header Dokter
+        html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 pr-8">';
+        html += '<div class="sm:col-span-2 lg:col-span-1"><label class="block text-xs font-medium text-slate-500 mb-1">Dokter</label>' + this.dropdownKaryawan('rk-doc-' + index, doc.dokterId) + '</div>';
+        html += this.inputField('Nilai Resep', 'rk-nilai-' + index, doc.nilaiResep, 'Rp');
+        html += this.inputField('Jasa Medis (JM)', 'rk-jm-' + index, doc.jm, 'Rp');
+        html += this.inputField('Jasa Dokter (JD)', 'rk-jd-' + index, doc.jd, 'Rp');
         html += '</div>';
 
-        // Checkbox THR
-        html += '<label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 cursor-pointer whitespace-nowrap">';
-        html += '<input type="checkbox" id="slot-' + tipe + '-thr-' + index + '" ' + (slot.isTHR ? 'checked' : '') + ' class="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500">';
-        html += 'THR';
-        html += '</label>';
+        // a. Karyawan Klinik
+        html += '<div class="mb-4 pl-4 border-l-4 border-purple-300 dark:border-purple-700">';
+        html += '<div class="flex justify-between items-center mb-2"><p class="text-sm font-semibold text-purple-600 dark:text-purple-400">b. Karyawan Klinik</p>';
+        html += '<div class="flex items-center gap-2">' + this.inputField('Pool Total', 'rk-poolKlinik-' + index, doc.poolKaryKlinik, 'Rp') + '<button type="button" onclick="AppPengaturanPembagian.addSlotTo(\'resepKlinik\', ' + index + ', \'slotKaryKlinik\')" class="text-xs text-purple-600 px-2 py-2 font-medium">+ Kary</button></div></div>';
+        html += '<div id="rk-slots-klinik-' + index + '">';
+        doc.slotKaryKlinik.forEach((s, si) => html += this.renderSlotRow('rk-klinik-' + index + '-' + si, s, true));
+        html += '</div></div>';
 
-        // Tombol Hapus
-        html += '<button onclick="AppPengaturanPembagian.removeSlot(\'' + tipe + '\',' + index + ')" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors self-center"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
-        
+        // c. Karyawan Apotek
+        html += '<div class="pl-4 border-l-4 border-teal-300 dark:border-teal-700">';
+        html += '<div class="flex justify-between items-center mb-2"><p class="text-sm font-semibold text-teal-600 dark:text-teal-400">c. Karyawan Apotek</p>';
+        html += '<div class="flex items-center gap-2">' + this.inputField('Pool Total', 'rk-poolApotek-' + index, doc.poolKaryApotek, 'Rp') + '<button type="button" onclick="AppPengaturanPembagian.addSlotTo(\'resepKlinik\', ' + index + ', \'slotKaryApotek\')" class="text-xs text-teal-600 px-2 py-2 font-medium">+ Kary</button></div></div>';
+        html += '<div id="rk-slots-apotek-' + index + '">';
+        doc.slotKaryApotek.forEach((s, si) => html += this.renderSlotRow('rk-apotek-' + index + '-' + si, s, true));
+        html += '</div></div>';
+
         html += '</div>';
         return html;
     },
 
-    addSlot: function(tipe) {
-        var container = document.getElementById('slots-' + tipe);
-        // Hitung index terbaru berdasarkan jumlah children saat ini
-        var count = container.querySelectorAll('[id^="slot-row-"]').length;
+    // --- 3 & 4. TINDAKAN KLINIK & APOTEK ---
+    renderSlotSection: function(dataKey, title, color, slots, hasThr) {
+        var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
+        html += '<div class="flex justify-between items-center mb-4"><h3 class="font-semibold text-' + color + '-600 dark:text-' + color + '-400 flex items-center gap-2 text-lg"><i data-lucide="stethoscope" class="w-5 h-5"></i> ' + title + '</h3><button onclick="AppPengaturanPembagian.addSlotTo(\'' + dataKey + '\')" class="text-sm bg-' + color + '-50 dark:bg-' + color + '-900/30 text-' + color + '-600 dark:text-' + color + '-400 px-3 py-1.5 rounded-lg hover:bg-' + color + '-100 dark:hover:bg-' + color + '-900/50 font-medium">+ Tambah</button></div>';
+        html += '<div id="slots-' + dataKey + '">';
+        slots.forEach((s, i) => html += this.renderSlotRow(dataKey + '-' + i, s, hasThr));
+        if(slots.length === 0) html += '<p class="text-sm text-slate-400 italic p-2">Belum ada data.</p>';
+        html += '</div></div>';
+        return html;
+    },
+
+    // --- 5, 6, 7 OMZET, TRANSPORT, UM ---
+    renderSlotRows: function(prefix, slots, hasThr) {
+        var html = '<div id="slots-' + prefix + '" class="space-y-2">';
+        slots.forEach((s, i) => html += this.renderSlotRow(prefix + '-' + i, s, hasThr));
+        html += '</div>';
+        html += '<button type="button" onclick="AppPengaturanPembagian.addSlotTo(\'' + prefix + '\')" class="mt-2 text-sm text-primary-600 dark:text-primary-400 font-medium flex items-center gap-1"><i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Karyawan</button>';
+        return html;
+    },
+
+    // --- UNIVERSAL SLOT ROW ---
+    renderSlotRow: function(rowId, slot, hasThr) {
+        var html = '<div id="row-' + rowId + '" class="flex flex-col sm:flex-row items-start sm:items-center gap-2 bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-100 dark:border-slate-700">';
+        html += '<div class="w-full sm:w-1/3">' + this.dropdownKaryawan('slot-id-' + rowId, slot.karyawanId) + '</div>';
+        html += '<div class="flex items-center gap-2 w-full sm:w-1/4"><input type="number" id="slot-persen-' + rowId + '" value="' + (slot.persen || 0) + '" class="w-full px-2 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm text-center" oninput="AppPengaturanPembagian.hitungInfoPSA()"><span class="text-xs text-slate-400">%</span></div>';
+        if (hasThr) {
+            html += '<label class="flex items-center gap-2 text-sm text-slate-500 whitespace-nowrap cursor-pointer"><input type="checkbox" id="slot-thr-' + rowId + '" ' + (slot.isTHR ? 'checked' : '') + ' class="w-4 h-4 rounded border-slate-300 text-primary-600"> Tab THR</label>';
+        }
+        html += '<button onclick="AppPengaturanPembagian.removeSlotRow(\'' + rowId + '\')" class="p-2 text-red-400 hover:text-red-600"><i data-lucide="x" class="w-4 h-4"></i></button>';
+        html += '</div>';
+        return html;
+    },
+
+    addSlotTo: function(parentKey, docIndex, slotKey) {
         var newSlot = { karyawanId: '', persen: 0, isTHR: false };
         
-        // Tambah ke data sementara di memori agar tidak hilang saat render ulang
-        var key = tipe === 'klinik' ? 'slotKaryawanKlinik' : 'slotKaryawanApotek';
-        AppPengaturanPembagian.data[key].push(newSlot);
-
-        // Hapus tulisan "Belum ada slot" jika ada
-        var italicText = container.querySelector('p.italic');
-        if (italicText) italicText.remove();
-
-        container.insertAdjacentHTML('beforeend', AppPengaturanPembagian.renderSlotRow(tipe, count, newSlot));
-        lucide.createIcons({ nodes: [container] });
+        // Logic untuk menentukan menaruh slot baru di mana
+        if (parentKey === 'resepKlinik') {
+            this.data.resepKlinik[docIndex][slotKey].push(newSlot);
+        } else {
+            // Untuk tindakanKlinik, tindakanApotek, omzet, transport, uangMakan
+            this.data[parentKey].slot.push(newSlot);
+        }
+        this.renderForm(); // Re-render agar index tidak error
     },
 
-    removeSlot: function(tipe, index) {
-        var key = tipe === 'klinik' ? 'slotKaryawanKlinik' : 'slotKaryawanApotek';
-        AppPengaturanPembagian.data[key].splice(index, 1);
-        
-        // Re-render seluruh section slot agar index-nya tidak error
-        var d = AppPengaturanPembagian.data;
-        AppPengaturanPembagian.renderForm();
-    },
-
-    inputField: function(label, id, value, suffix) {
-        return '<div>'
-            + '<label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">' + label + '</label>'
-            + '<div class="relative">'
-            + '<input type="number" id="pb-' + id + '" value="' + (value || 0) + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white rounded-lg text-sm pr-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none">'
-            + '<span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">' + suffix + '</span>'
-            + '</div>'
-            + '</div>';
-    },
-
-    simpan: function() {
-        var d = AppPengaturanPembagian.data;
-
-        // 1. Kumpulkan data Nominal & Persen biasa
-        d.resep.nilaiResep = parseFloat(document.getElementById('pb-resep_nilaiResep').value) || 0;
-        d.resep.jm = parseFloat(document.getElementById('pb-resep_jm').value) || 0;
-        d.resep.jd = parseFloat(document.getElementById('pb-resep_jd').value) || 0;
-        d.resep.karyKlinik = parseFloat(document.getElementById('pb-resep_karyKlinik').value) || 0;
-        d.resep.karyApotek = parseFloat(document.getElementById('pb-resep_karyApotek').value) || 0;
-        d.resep.psa = parseFloat(document.getElementById('pb-resep_psa').value) || 0;
-
-        d.resepLuar.nilaiResep = parseFloat(document.getElementById('pb-resepLuar_nilaiResep').value) || 0;
-        d.resepLuar.dokter = parseFloat(document.getElementById('pb-resepLuar_dokter').value) || 0;
-        d.resepLuar.psa = parseFloat(document.getElementById('pb-resepLuar_psa').value) || 0;
-
-        d.tindakanKlinik.dokter = parseFloat(document.getElementById('pb-tindakanKlinik_dokter').value) || 0;
-        d.tindakanKlinik.karyKlinik = parseFloat(document.getElementById('pb-tindakanKlinik_karyKlinik').value) || 0;
-
-        d.tindakanApotek.karyApotek = parseFloat(document.getElementById('pb-tindakanApotek_karyApotek').value) || 0;
-        d.tindakanApotek.psa = parseFloat(document.getElementById('pb-tindakanApotek_psa').value) || 0;
-
-        d.tunjanganOmzet.persen = parseFloat(document.getElementById('pb-tunjanganOmzet_persen').value) || 0;
-        d.uangMakan.persenDariPembulatan = parseFloat(document.getElementById('pb-uangMakan_persenDariPembulatan').value) || 100; // Default 100 jika kosong
-        d.transport.nominalTotal = parseFloat(document.getElementById('pb-transport_nominalTotal').value) || 0;
-        d.marginResep = parseFloat(document.getElementById('pb-marginResep').value) || 0;
-
-        // 2. Kumpulkan data Slot (Karena bisa di-add/remove, baca dari DOM saat ini)
-        d.slotKaryawanKlinik = AppPengaturanPembagian.collectSlotsFromDOM('klinik');
-        d.slotKaryawanApotek = AppPengaturanPembagian.collectSlotsFromDOM('apotek');
-
-        // 3. Simpan ke Firestore
-        d.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-
-        // Tampilkan loading di tombol (opsional tapi bagus)
-        Utils.toast('Menyimpan pengaturan...', 'info');
-
-        db.collection('pengaturanPembagian').doc('global').set(d, { merge: true })
-            .then(function() {
-                Utils.toast('Pengaturan pembagian berhasil disimpan!', 'success');
-            })
-            .catch(function(err) {
-                Utils.toast('Gagal menyimpan: ' + err.message, 'error');
-            });
-    },
-
-    collectSlotsFromDOM: function(tipe) {
-        var container = document.getElementById('slots-' + tipe);
-        var rows = container.querySelectorAll('[id^="slot-row-"]');
-        var slots = [];
-
-        for (var i = 0; i < rows.length; i++) {
-            // Ekstrak index dari id="slot-row-klinik-0"
-            var rowIndex = rows[i].id.split('-').pop();
-            
-            var idEl = document.getElementById('slot-' + tipe + '-id-' + rowIndex);
-            var persenEl = document.getElementById('slot-' + tipe + '-persen-' + rowIndex);
-            var thrEl = document.getElementById('slot-' + tipe + '-thr-' + rowIndex);
-
-            if (idEl && idEl.value) { // Hanya simpan yang sudah pilih karyawan
-                slots.push({
-                    karyawanId: idEl.value,
-                    persen: parseFloat(persenEl.value) || 0,
-                    isTHR: thrEl ? thrEl.checked : false
-                });
+    removeSlotRow: function(rowId) {
+        // Parse "rk-klinik-0-1" atau "tindakanKlinik-0"
+        var parts = rowId.split('-');
+        if (parts[0] === 'rk') {
+            var type = parts[1]; // klinik atau apotek
+            var docIdx = parseInt(parts[2]);
+            var slotIdx = parseInt(parts[3]);
+            var slotKey = (type === 'klinik') ? 'slotKaryKlinik' : 'slotKaryApotek';
+            this.data.resepKlinik[docIdx][slotKey].splice(slotIdx, 1);
+        } else {
+            var parentKey = parts[0];
+            var slotIdx = parseInt(parts[1]);
+            if(this.data[parentKey] && this.data[parentKey].slot) {
+                this.data[parentKey].slot.splice(slotIdx, 1);
             }
         }
+        this.renderForm();
+    },
+
+    // --- 8. HITUNG INFO PSA SECARA REALTIME ---
+    hitungInfoPSA: function() {
+        var el = document.getElementById('psa-margin-info');
+        if(!el) return;
+
+        // 1. Resep Klinik
+        var psaResepKlinik = 0;
+        document.querySelectorAll('[id^="rk-nilai-"]').forEach((input, i) => {
+            var nilai = parseFloat(input.value) || 0;
+            var jm = parseFloat(document.getElementById('rk-jm-'+i).value) || 0;
+            var jd = parseFloat(document.getElementById('rk-jd-'+i).value) || 0;
+            var poolK = parseFloat(document.getElementById('rk-poolKlinik-'+i).value) || 0;
+            var poolA = parseFloat(document.getElementById('rk-poolApotek-'+i).value) || 0;
+            psaResepKlinik += (nilai - jm - jd - poolK - poolA);
+        });
+
+        // 2. Resep Luar
+        var rlNilai = parseFloat(document.getElementById('pb-resepLuar_nilaiResep')?.value) || 0;
+        var rlDokter = parseFloat(document.getElementById('pb-resepLuar_potonganDokter')?.value) || 0;
+        var psaResepLuar = rlNilai - rlDokter;
+
+        // 3. Tindakan Klinik (Total persen harus 100, sisanya PSA)
+        var totTK = 0;
+        document.querySelectorAll('[id^="slot-persen-tindakanKlinik-"]').forEach(i => totTK += parseFloat(i.value) || 0);
+        var psaTK = 100 - totTK;
+
+        // 4. Tindakan Apotek (Total persen harus 100, sisanya PSA)
+        var totTA = 0;
+        document.querySelectorAll('[id^="slot-persen-tindakanApotek-"]').forEach(i => totTA += parseFloat(i.value) || 0);
+        var psaTA = 100 - totTA;
+
+        // 7. Uang Makan (Total persen harus 100, sisanya PSA)
+        var totUM = 0;
+        document.querySelectorAll('[id^="slot-persen-uangMakan-"]').forEach(i => totUM += parseFloat(i.value) || 0);
+        var psaUM = 100 - totUM;
+
+        el.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><span class="text-xs text-blue-600 dark:text-blue-400">a. Sisa Resep Klinik</span><p class="font-bold text-blue-800 dark:text-blue-300">${Utils.formatRupiah(psaResepKlinik)} <span class="text-xs font-normal">/ resep</span></p></div>
+                <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"><span class="text-xs text-green-600 dark:text-green-400">b. Sisa Resep Luar</span><p class="font-bold text-green-800 dark:text-green-300">${Utils.formatRupiah(psaResepLuar)} <span class="text-xs font-normal">/ resep</span></p></div>
+                <div class="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"><span class="text-xs text-purple-600 dark:text-purple-400">c. Sisa Tindakan Klinik</span><p class="font-bold text-purple-800 dark:text-purple-300">${psaTK}%</p></div>
+                <div class="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg"><span class="text-xs text-teal-600 dark:text-teal-400">d. Sisa Tindakan Apotek</span><p class="font-bold text-teal-800 dark:text-teal-300">${psaTA}%</p></div>
+                <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg md:col-span-2"><span class="text-xs text-orange-600 dark:text-orange-400">e. Sisa Uang Makan</span><p class="font-bold text-orange-800 dark:text-orange-300">${psaUM}%</p></div>
+            </div>
+            <p class="text-xs text-slate-400 mt-3 italic">*Nilai dihitung realtime berdasarkan input di atas. Jika minus, berarti pembagian melebihi sumber pendapatan.</p>
+        `;
+    },
+
+    // --- SIMPAN KE FIRESTORE ---
+    simpan: function() {
+        var d = this.data;
+
+        // 1. Resep Klinik
+        d.resepKlinik = [];
+        var rkBlocks = document.querySelectorAll('[id^="rk-nilai-"]');
+        rkBlocks.forEach((input, i) => {
+            d.resepKlinik.push({
+                dokterId: document.getElementById('rk-doc-'+i).value,
+                nilaiResep: parseFloat(input.value) || 0,
+                jm: parseFloat(document.getElementById('rk-jm-'+i).value) || 0,
+                jd: parseFloat(document.getElementById('rk-jd-'+i).value) || 0,
+                poolKaryKlinik: parseFloat(document.getElementById('rk-poolKlinik-'+i).value) || 0,
+                slotKaryKlinik: this.collectSlotRows('rk-klinik-'+i),
+                poolKaryApotek: parseFloat(document.getElementById('rk-poolApotek-'+i).value) || 0,
+                slotKaryApotek: this.collectSlotRows('rk-apotek-'+i)
+            });
+        });
+
+        // 2. Resep Luar
+        d.resepLuar = {
+            nilaiResep: parseFloat(document.getElementById('pb-resepLuar_nilaiResep').value) || 0,
+            potonganDokter: parseFloat(document.getElementById('pb-resepLuar_potonganDokter').value) || 0
+        };
+
+        // 3 & 4. Tindakan (Array of slots langsung)
+        d.tindakanKlinik = this.collectSlotRows('tindakanKlinik');
+        d.tindakanApotek = this.collectSlotRows('tindakanApotek');
+
+        // 5. Tunjangan Omzet
+        d.tunjanganOmzet = {
+            persen: parseFloat(document.getElementById('pb-omzet_persen').value) || 0,
+            slot: this.collectSlotRows('omzet')
+        };
+
+        // 6. Transport
+        d.transport = {
+            total: parseFloat(document.getElementById('pb-transport_total').value) || 0,
+            slot: this.collectSlotRows('transport')
+        };
+
+        // 7. Uang Makan
+        d.uangMakan = { slot: this.collectSlotRows('uangMakan') };
+
+        d.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
+        Utils.toast('Menyimpan...', 'info');
+        db.collection('pengaturanPembagian').doc('global').set(d, { merge: true })
+            .then(() => Utils.toast('Berhasil disimpan!', 'success'))
+            .catch(err => Utils.toast('Gagal: ' + err.message, 'error'));
+    },
+
+    // Helper baca DOM slots
+    collectSlotRows: function(prefix) {
+        var slots = [];
+        var persenInputs = document.querySelectorAll('[id^="slot-persen-' + prefix + '-"]');
+        persenInputs.forEach(input => {
+            // Ekstrak index dari ID: slot-persen-tindakanKlinik-0 -> index 0
+            var idx = input.id.split('-').pop();
+            var karyId = document.getElementById('slot-id-' + prefix + '-' + idx)?.value;
+            var isThrEl = document.getElementById('slot-thr-' + prefix + '-' + idx);
+            
+            if(karyId) {
+                slots.push({
+                    karyawanId: karyId,
+                    persen: parseFloat(input.value) || 0,
+                    isTHR: isThrEl ? isThrEl.checked : false
+                });
+            }
+        });
         return slots;
     }
 };

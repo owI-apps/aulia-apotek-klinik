@@ -235,7 +235,7 @@ window.AppPengaturanPembagian = {
     },
 
     // --- 8. HITUNG INFO PSA SECARA REALTIME ---
-        hitungInfoPSA: function() {
+            hitungInfoPSA: function() {
         var el = document.getElementById('psa-margin-info');
         if(!el) return;
 
@@ -281,6 +281,7 @@ window.AppPengaturanPembagian = {
             <p class="text-xs text-slate-400 mt-3 italic">*Nilai dihitung realtime. Jika minus, berarti pembagian melebihi sumber pendapatan.</p>
         `;
     },
+    
     // --- SIMPAN KE FIRESTORE ---
     simpan: function() {
         var d = this.data;

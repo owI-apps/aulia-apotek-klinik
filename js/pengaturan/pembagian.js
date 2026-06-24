@@ -17,7 +17,7 @@ window.AppPengaturanPembagian = {
         return html;
     },
 
-    init: function() {
+        init: function() {
         var pKaryawan = db.collection('karyawan').where('status', '==', 'aktif').get();
         var pConfig = db.collection('pengaturanPembagian').doc('global').get();
 
@@ -26,7 +26,20 @@ window.AppPengaturanPembagian = {
             results[0].forEach(function(doc) { var d = doc.data(); d.id = doc.id; AppPengaturanPembagian.karyawanList.push(d); });
 
             if (results[1].exists) {
-                AppPengaturanPembagian.data = results[1].data();
+                var rawData = results[1].data();
+                var defaultData = AppPengaturanPembagian.getDefaultData();
+                
+                // Gabungkan data lama dengan data baru, agar yang tidak ada langsung keisi
+                AppPengaturanPembagian.data = Object.assign({}, defaultData, rawData);
+                
+                // PELINDUNG TAMBAHAN: Pastikan array di dalam object itu benar-benar array
+                if (!Array.isArray(AppPengaturanPembagian.data.resepKlinik)) AppPengaturanPembagian.data.resepKlinik = [];
+                if (!Array.isArray(AppPengaturanPembagian.data.tindakanKlinik)) AppPengaturanPembagian.data.tindakanKlinik = [];
+                if (!Array.isArray(AppPengaturanPembagian.data.tindakanApotek)) AppPengaturanPembagian.data.tindakanApotek = [];
+                if (!Array.isArray(AppPengaturanPembagian.data.tunjanganOmzet.slot)) AppPengaturanPembagian.data.tunjanganOmzet.slot = [];
+                if (!Array.isArray(AppPengaturanPembagian.data.transport.slot)) AppPengaturanPembagian.data.transport.slot = [];
+                if (!Array.isArray(AppPengaturanPembagian.data.uangMakan.slot)) AppPengaturanPembagian.data.uangMakan.slot = [];
+                
             } else {
                 AppPengaturanPembagian.data = AppPengaturanPembagian.getDefaultData();
                 db.collection('pengaturanPembagian').doc('global').set(AppPengaturanPembagian.data);
@@ -202,7 +215,7 @@ window.AppPengaturanPembagian = {
         return html;
     },
 
-            addSlotTo: function(parentKey, docIndex, slotKey) {
+                addSlotTo: function(parentKey, docIndex, slotKey) {
         var newSlot = { karyawanId: '', persen: 0, isTHR: false };
         
         if (parentKey === 'resepKlinik') {
@@ -210,12 +223,16 @@ window.AppPengaturanPembagian = {
         } else {
             var target = this.data[parentKey];
             
+            // PERISAI: Kalau datanya hilang/undefined, hentikan proses dan beri tahu
+            if (!target) {
+                console.error("ERROR: Struktur data untuk", parentKey, "tidak ditemukan!");
+                Utils.toast("Error struktur data. Coba refresh halaman.", "error");
+                return; 
+            }
+
             if (Array.isArray(target)) {
-                // Untuk Tindakan Klinik & Apotek (Langsung Array)
                 target.push(newSlot); 
             } else {
-                // Untuk Omzet, Transport, Uang Makan (Object berisi Array)
-                // PELINDUNG: Kalau slot belum ada di database, bikin baru dulu
                 if (!target.slot || !Array.isArray(target.slot)) {
                     target.slot = [];
                 }

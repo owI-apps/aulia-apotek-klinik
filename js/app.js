@@ -39,8 +39,22 @@ window.Utils = {
         var el = document.getElementById(containerId);
         if(el) el.innerHTML = '<div class="flex justify-center py-10"><div class="spinner"></div></div>';
     },
-    openModal: (html) => { /* Nanti dibuat */ },
-    closeModal: () => { /* Nanti dibuat */ }
+    // FUNGSI BARU UNTUK MODAL/POPUP
+    openModal: (htmlContent) => {
+        var existing = document.getElementById('global-modal');
+        if(existing) existing.remove();
+
+        var modal = document.createElement('div');
+        modal.id = 'global-modal';
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50';
+        modal.innerHTML = '<div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">' + htmlContent + '</div>';
+        document.body.appendChild(modal);
+        lucide.createIcons();
+    },
+    closeModal: () => {
+        var modal = document.getElementById('global-modal');
+        if(modal) modal.remove();
+    }
 };
 
 // ==========================================

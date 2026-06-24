@@ -45,7 +45,7 @@ window.AppPengaturanTindakan = {
         }).catch(err => Utils.toast('Gagal memuat: ' + err.message, 'error'));
     },
 
-        seedDefaultData: function() {
+            seedDefaultData: function() {
         var defaults = [
             { nama: 'Cek Tensi', kategori: 'klinik', hargaJual: 15000, modal: 13000, aktif: true },
             { nama: 'Cek Gula Darah', kategori: 'klinik', hargaJual: 15000, modal: 13000, aktif: true },
@@ -60,19 +60,29 @@ window.AppPengaturanTindakan = {
         ];
 
         var batch = db.batch();
+        var dataUntukTampil = []; // Siapkan wadah untuk tampilan
+
         defaults.forEach(function(item) {
-            // CARA BENAR BATCH DI FIREBASE JS: Buat doc ID dulu, lalu set()
             var newDocRef = db.collection('masterTindakan').doc();
             batch.set(newDocRef, item);
+            
+            // Simpan data beserta ID-nya untuk langsung ditampilkan
+            var itemDenganId = Object.assign({}, item);
+            itemDenganId.id = newDocRef.id;
+            dataUntukTampil.push(itemDenganId);
         });
         
         batch.commit().then(function() {
             Utils.toast('Data tindakan awal berhasil dibuat!', 'success');
-            AppPengaturanTindakan.init(); // Reload setelah seed
+            
+            // LANGSUNG MASUKKAN KE DATA DAN RENDER, TANPA BACA ULANG DARI FIREBASE
+            AppPengaturanTindakan.data = dataUntukTampil;
+            AppPengaturanTindakan.renderList();
         }).catch(function(err) {
             Utils.toast('Gagal setup data awal: ' + err.message, 'error');
         });
     },
+    
     setFilter: function(kat) {
         this.filterKategori = kat;
         this.renderList();

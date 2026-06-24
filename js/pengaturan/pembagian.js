@@ -202,7 +202,7 @@ window.AppPengaturanPembagian = {
         return html;
     },
 
-        addSlotTo: function(parentKey, docIndex, slotKey) {
+            addSlotTo: function(parentKey, docIndex, slotKey) {
         var newSlot = { karyawanId: '', persen: 0, isTHR: false };
         
         if (parentKey === 'resepKlinik') {
@@ -210,17 +210,22 @@ window.AppPengaturanPembagian = {
         } else {
             var target = this.data[parentKey];
             
-            // Cek apakah targetnya Array (Tindakan) atau Object punya .slot (Omzet/Transport/UM)
             if (Array.isArray(target)) {
+                // Untuk Tindakan Klinik & Apotek (Langsung Array)
                 target.push(newSlot); 
-            } else if (target && Array.isArray(target.slot)) {
+            } else {
+                // Untuk Omzet, Transport, Uang Makan (Object berisi Array)
+                // PELINDUNG: Kalau slot belum ada di database, bikin baru dulu
+                if (!target.slot || !Array.isArray(target.slot)) {
+                    target.slot = [];
+                }
                 target.slot.push(newSlot); 
             }
         }
         this.renderForm(); 
     },
 
-        removeSlotRow: function(rowId) {
+    removeSlotRow: function(rowId) {
         var parts = rowId.split('-');
         if (parts[0] === 'rk') {
             var type = parts[1]; 
@@ -233,11 +238,12 @@ window.AppPengaturanPembagian = {
             var slotIdx = parseInt(parts[1]);
             var target = this.data[parentKey];
             
-            // Deteksi tipe data saat hapus
             if (Array.isArray(target)) {
                 target.splice(slotIdx, 1); 
-            } else if (target && Array.isArray(target.slot)) {
-                target.slot.splice(slotIdx, 1); 
+            } else {
+                if (target && target.slot) {
+                    target.slot.splice(slotIdx, 1); 
+                }
             }
         }
         this.renderForm();

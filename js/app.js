@@ -109,6 +109,7 @@ const menuStructure = {
         { id: 'profil', label: 'Profil Instansi', icon: 'building-2', module: 'pengaturan/profil' },
         { id: 'pembagian', label: 'Pembagian Hasil', icon: 'pie-chart', module: 'pengaturan/pembagian' },
         { id: 'tindakan', label: 'Master Tindakan', icon: 'stethoscope', module: 'pengaturan/tindakan' },
+        { id: 'gaji', label: 'Pengaturan Gaji', icon: 'wallet', module: 'pengaturan/gaji' },
         { id: 'users', label: 'Kelola Users', icon: 'user-cog', module: 'pengaturan/users' }
     ]
 };

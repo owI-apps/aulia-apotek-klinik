@@ -31,7 +31,6 @@ window.Utils = {
         return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     },
     toast: (msg, type = 'info') => {
-        // Sementara pakai alert dulu, nanti bisa kita upgrade jadi toast cantik
         if(type === 'error') alert('❌ ERROR: ' + msg);
         else if(type === 'success') alert('✅ ' + msg);
         else alert('ℹ️ ' + msg);
@@ -53,7 +52,6 @@ function toggleTheme() {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
 }
 
-// Init Theme
 (function() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -101,7 +99,6 @@ const menuStructure = {
     ]
 };
 
-// Akses berdasarkan Role (SESUAI FINAL BLUEPRINT)
 const roleAccess = {
     klinik: ['klinik', 'manajemen.absensi'], 
     apotek: ['apotek', 'laporan.pengeluaran', 'manajemen.absensi'], 
@@ -124,8 +121,7 @@ function renderSidebar(role) {
     ];
 
     sections.forEach(section => {
-        const hasAccess = allowed.includes(section.key) || 
-                          allowed.some(a => a.startsWith(section.key));
+        const hasAccess = allowed.includes(section.key) || allowed.some(a => a.startsWith(section.key));
         if (!hasAccess) return;
 
         html += `<div>`;
@@ -151,9 +147,27 @@ function renderSidebar(role) {
 }
 
 // ==========================================
-// ROUTER (Lazy Loading Scripts)
+// DYNAMIC SCRIPT LOADER (ZERO BUILD APPROACH)
 // ==========================================
 let currentModule = null;
+const loadedScripts = {}; // Cache biar ga load 2x
+
+function loadScript(url) {
+    return new Promise((resolve, reject) => {
+        if (loadedScripts[url]) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = () => {
+            loadedScripts[url] = true;
+            resolve();
+        };
+        script.onerror = () => reject(new Error('File tidak ditemukan di: ' + url));
+        document.head.appendChild(script);
+    });
+}
 
 window.navigateTo = async function(modulePath, title) {
     document.getElementById('page-title').textContent = title;
@@ -163,26 +177,40 @@ window.navigateTo = async function(modulePath, title) {
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('bg-primary-50', 'dark:bg-slate-700', 'text-primary-600', 'dark:text-primary-400', 'font-semibold');
     });
-    const activeBtn = document.querySelector(`[data-page="${modulePath.split('/')[1]}"]`);
+    const activeBtn = document.querySelector(`[data-page="${modulePath.split('/').pop()}"]`);
     if(activeBtn) activeBtn.classList.add('bg-primary-50', 'dark:bg-slate-700', 'text-primary-600', 'dark:text-primary-400', 'font-semibold');
 
     if(window.innerWidth < 1024) toggleMobileSidebar();
 
     try {
-        // Dinamis load file JS berdasarkan menu yang diklik
-        const { default: Module } = await import(`./${modulePath}.js`);
-        currentModule = Module;
+        // Load script secara dinamis (Cocok untuk GitHub Pages tanpa Webpack/Vite)
+        const scriptUrl = `js/${modulePath}.js`;
+        await loadScript(scriptUrl);
         
+        // Konversi path jadi nama Object Window
+        // Contoh: 'pengaturan/pembagian' -> 'AppPengaturanPembagian'
+        // Contoh: 'dashboard' -> 'AppDashboard'
+        const moduleName = 'App' + modulePath.split('/').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+        
+        const Module = window[moduleName];
+        
+        if (!Module || typeof Module.render !== 'function') {
+            throw new Error(`Objek ${moduleName} tidak ditemukan. Pastikan nama variabel di file JS sesuai.`);
+        }
+
+        currentModule = Module;
         document.getElementById('app-content').innerHTML = Module.render();
         lucide.createIcons();
-        if (Module.init) Module.init();
+        if (typeof Module.init === 'function') Module.init();
+        
     } catch (error) {
         console.error("Gagal load module:", error);
         document.getElementById('app-content').innerHTML = `
             <div class="text-center py-20">
                 <i data-lucide="file-x" class="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4"></i>
                 <h3 class="text-lg font-bold text-slate-500 dark:text-slate-400">Halaman Belum Tersedia</h3>
-                <p class="text-sm text-slate-400 dark:text-slate-500">Module: js/${modulePath}.js belum dibuat.</p>
+                <p class="text-sm text-slate-400 dark:text-slate-500 mt-2">${error.message}</p>
+                <p class="text-xs text-slate-300 dark:text-slate-600 mt-1">Path: js/${modulePath}.js</p>
             </div>`;
         lucide.createIcons();
     }
@@ -207,14 +235,17 @@ function startApp(role = 'keuangan', name = 'Akun PSA') {
     document.getElementById('user-avatar').textContent = name.charAt(0);
     
     renderSidebar(role);
-    // Arahkan ke halaman pembagian hasil dulu untuk testing pengisian
     navigateTo('pengaturan/pembagian', 'Pembagian Hasil'); 
 }
 
 // Jalankan Aplikasi
 startApp('keuangan', 'Keuangan PSA');
 
-// Register Service Worker untuk PWA
+// Register Service Worker untuk PWA (Aman jika file sw.js belum ada)
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(() => {
+            // Biarkan silent jika gagal, supaya tidak ngebug aplikasi utama
+        });
+    });
 }

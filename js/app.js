@@ -82,7 +82,7 @@ const menuStructure = {
     klinik: [
         { id: 'antrian', label: 'Antrian', icon: 'list-ordered', module: 'klinik/antrian' },
         { id: 'rekam-medis', label: 'Rekam Medis', icon: 'file-heart', module: 'klinik/rekam-medis' },
-        { id: 'resep', label: 'Resep', icon: 'prescription', module: 'klinik/resep' },
+        { id: 'resep', label: 'Resep', icon: 'file-text', module: 'klinik/resep' },
         { id: 'pasien', label: 'Pasien', icon: 'users', module: 'klinik/pasien' }
     ],
     apotek: [

@@ -77,7 +77,7 @@ window.AppPengaturanPembagian = {
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
         html += '<h3 class="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2 text-lg mb-4"><i data-lucide="trending-up" class="w-5 h-5"></i> 5. Tunjangan Omzet</h3>';
         html += '<div class="mb-4 w-32">' + AppPengaturanPembagian.inputField('Persen Margin Obat', 'omzet_persen', d.tunjanganOmzet.persen, '%') + '</div>';
-        html += AppPengaturanPembagian.renderSlotRows('omzet', d.tunjanganOmzet.slot, false);
+        html += AppPengaturanPembagian.renderSlotRows('tunjanganOmzet', d.tunjanganOmzet.slot, false);
         html += '</div>';
 
         // 6. TUNJANGAN TRANSPORT
@@ -338,7 +338,7 @@ window.AppPengaturanPembagian = {
         // 5. Tunjangan Omzet
         d.tunjanganOmzet = {
             persen: parseFloat(document.getElementById('pb-omzet_persen').value) || 0,
-            slot: this.collectSlotRows('omzet')
+            slot: this.collectSlotRows('tunjanganOmzet')
         };
 
         // 6. Transport

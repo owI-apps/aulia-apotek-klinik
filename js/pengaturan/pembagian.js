@@ -235,11 +235,11 @@ window.AppPengaturanPembagian = {
     },
 
     // --- 8. HITUNG INFO PSA SECARA REALTIME ---
-            hitungInfoPSA: function() {
+               hitungInfoPSA: function() {
         var el = document.getElementById('psa-margin-info');
         if(!el) return;
 
-        // 1. Resep Klinik (FIX: ditambahkan 'pb-' di depannya)
+        // 1. Resep Klinik
         var psaResepKlinik = 0;
         document.querySelectorAll('[id^="pb-rk-nilai-"]').forEach((input, i) => {
             var nilai = parseFloat(input.value) || 0;
@@ -265,18 +265,26 @@ window.AppPengaturanPembagian = {
         document.querySelectorAll('[id^="slot-persen-tindakanApotek-"]').forEach(i => totTA += parseFloat(i.value) || 0);
         var psaTA = 100 - totTA;
 
+        // 5. Tunjangan Omzet (Sisa persen setelah slot karyawan)
+        var omzetPersenKary = 0;
+        document.querySelectorAll('[id^="slot-persen-omzet-"]').forEach(i => omzetPersenKary += parseFloat(i.value) || 0);
+        var omzetTotalPersen = parseFloat(document.getElementById('pb-omzet_persen')?.value) || 0;
+        var psaOmzet = omzetTotalPersen - omzetPersenKary;
+
         // 7. Uang Makan
         var totUM = 0;
         document.querySelectorAll('[id^="slot-persen-uangMakan-"]').forEach(i => totUM += parseFloat(i.value) || 0);
         var psaUM = 100 - totUM;
 
+        // RENDER KE LAYAR (Sudah termasuk Sisa Omzet)
         el.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><span class="text-xs text-blue-600 dark:text-blue-400">a. Sisa Resep Klinik</span><p class="font-bold text-blue-800 dark:text-blue-300">${Utils.formatRupiah(psaResepKlinik)} <span class="text-xs font-normal">/ resep</span></p></div>
                 <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"><span class="text-xs text-green-600 dark:text-green-400">b. Sisa Resep Luar</span><p class="font-bold text-green-800 dark:text-green-300">${Utils.formatRupiah(psaResepLuar)} <span class="text-xs font-normal">/ resep</span></p></div>
                 <div class="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"><span class="text-xs text-purple-600 dark:text-purple-400">c. Sisa Tindakan Klinik</span><p class="font-bold text-purple-800 dark:text-purple-300">${psaTK}%</p></div>
                 <div class="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg"><span class="text-xs text-teal-600 dark:text-teal-400">d. Sisa Tindakan Apotek</span><p class="font-bold text-teal-800 dark:text-teal-300">${psaTA}%</p></div>
-                <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg md:col-span-2"><span class="text-xs text-orange-600 dark:text-orange-400">e. Sisa Uang Makan</span><p class="font-bold text-orange-800 dark:text-orange-300">${psaUM}%</p></div>
+                <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg"><span class="text-xs text-emerald-600 dark:text-emerald-400">e. Sisa Tunjangan Omzet</span><p class="font-bold text-emerald-800 dark:text-emerald-300">${psaOmzet}%</p></div>
+                <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg"><span class="text-xs text-orange-600 dark:text-orange-400">f. Sisa Uang Makan</span><p class="font-bold text-orange-800 dark:text-orange-300">${psaUM}%</p></div>
             </div>
             <p class="text-xs text-slate-400 mt-3 italic">*Nilai dihitung realtime. Jika minus, berarti pembagian melebihi sumber pendapatan.</p>
         `;
@@ -286,18 +294,18 @@ window.AppPengaturanPembagian = {
     simpan: function() {
         var d = this.data;
 
-        // 1. Resep Klinik
+                // 1. Resep Klinik
         d.resepKlinik = [];
-        var rkBlocks = document.querySelectorAll('[id^="rk-nilai-"]');
+        var rkBlocks = document.querySelectorAll('[id^="pb-rk-nilai-"]');
         rkBlocks.forEach((input, i) => {
             d.resepKlinik.push({
-                dokterId: document.getElementById('rk-doc-'+i).value,
+                dokterId: document.getElementById('pb-rk-doc-'+i)?.value,
                 nilaiResep: parseFloat(input.value) || 0,
-                jm: parseFloat(document.getElementById('rk-jm-'+i).value) || 0,
-                jd: parseFloat(document.getElementById('rk-jd-'+i).value) || 0,
-                poolKaryKlinik: parseFloat(document.getElementById('rk-poolKlinik-'+i).value) || 0,
+                jm: parseFloat(document.getElementById('pb-rk-jm-'+i)?.value) || 0,
+                jd: parseFloat(document.getElementById('pb-rk-jd-'+i)?.value) || 0,
+                poolKaryKlinik: parseFloat(document.getElementById('pb-rk-poolKlinik-'+i)?.value) || 0,
                 slotKaryKlinik: this.collectSlotRows('rk-klinik-'+i),
-                poolKaryApotek: parseFloat(document.getElementById('rk-poolApotek-'+i).value) || 0,
+                poolKaryApotek: parseFloat(document.getElementById('pb-rk-poolApotek-'+i)?.value) || 0,
                 slotKaryApotek: this.collectSlotRows('rk-apotek-'+i)
             });
         });

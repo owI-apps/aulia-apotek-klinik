@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aulia Apotek & Klinik</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <i class="fas fa-hospital"></i>
+                <h1>Aulia Apotek & Klinik</h1>
+                <p>Sistem Manajemen Terpadu</p>
+            </div>
+            <div id="loginError" class="error-message" style="display: none;"></div>
+            <div class="login-form">
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="loginEmail" placeholder="user@apotek.com">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="loginPass" placeholder="Password">
+                </div>
+                <button id="loginBtn" class="btn btn-primary btn-block"><i class="fas fa-sign-in-alt"></i> Masuk</button>
+            </div>
+            <div class="login-footer">
+                <small>Hubungi admin untuk akun baru</small>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell" class="app-shell" style="display: none;">
+        <aside id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo"><i class="fas fa-hospital"></i></div>
+                <h2 id="sidebarNama">Aulia</h2>
+            </div>
+            <div class="sidebar-profile">
+                <div class="profile-avatar" id="sidebarAvatar">U</div>
+                <div class="profile-info">
+                    <p id="sidebarUser" class="profile-name">User</p>
+                    <p id="sidebarRole" class="profile-role">Role</p>
+                </div>
+            </div>
+            <nav id="sidebarNav" class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="conn-status">
+                    <span id="connBadge" class="conn-badge online"></span>
+                    <span id="connText">Online</span>
+                </div>
+                <button id="themeToggle" class="btn-icon"><i class="fas fa-moon"></i></button>
+                <button id="logoutBtn" class="btn-icon btn-logout"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </aside>
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
+        <main class="main-content">
+            <div class="topbar">
+                <button id="menuToggle" class="btn-menu"><i class="fas fa-bars"></i></button>
+                <h1 id="pageTitle" class="page-title">Dashboard</h1>
+                <div class="topbar-right"><span id="roleBadge" class="role-badge"></span></div>
+            </div>
+            <div class="pages-container"></div>
+        </main>
+    </div>
+
+    <div id="toasts" class="toasts-container"></div>
+    <div id="modalBackdrop" class="modal-backdrop"></div>
+    <div id="modalContainer" class="modal-container"></div>
+
+    <script src="app.js"></script>
+    <script src="mod-dashboard.js"></script>
+    <script src="mod-klinik.js"></script>
+    <script src="mod-apotek.js"></script>
+    <script src="mod-keuangan.js"></script>
+    <script src="mod-users.js"></script>
+    <script src="mod-pengaturan.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>

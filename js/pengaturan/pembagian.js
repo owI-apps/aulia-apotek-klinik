@@ -1,7 +1,7 @@
 /**
  * js/pengaturan/pembagian.js
  * REVOLUSI SKEMA: Pembagian sangat detail per orang & per dokter.
- * FIX: Sync DOM Bulletproof, Logika Omzet PSA benar, Pastikan data push ke Firebase.
+ * FIX: Hilangkan duplikat kode yang bikin blank page.
  */
 
 window.AppPengaturanPembagian = {
@@ -79,7 +79,7 @@ window.AppPengaturanPembagian = {
         return el ? el.checked : false;
     },
 
-            syncStateFromDOM: function() {
+    syncStateFromDOM: function() {
         var d = this.data;
         if(!d) return;
 
@@ -103,7 +103,6 @@ window.AppPengaturanPembagian = {
         d.resepKlinik = [];
         var self = this;
         for (var i = 0; i < rkBlocks.length; i++) {
-            // FIX TYPO: 'rk-doc-' (tanpa pb- karena id dropdown native)
             var docId = self.getStr('rk-doc-'+i);
             var karyawan = self.karyawanList.find(function(k){ return k.id === docId; });
             
@@ -121,14 +120,6 @@ window.AppPengaturanPembagian = {
             });
         }
 
-        // Ambil Slots
-        d.tindakanKlinik = this.collectSlotRows('tindakanKlinik');
-        d.tindakanApotek = this.collectSlotRows('tindakanApotek');
-        d.tunjanganOmzet.slot = this.collectSlotRows('tunjanganOmzet');
-        d.transport.slot = this.collectSlotRows('transport');
-        d.uangMakan.slot = this.collectSlotRows('uangMakan');
-        d.racikObat.slot = this.collectSlotRows('racikObat');
-    },
         // Ambil Slots
         d.tindakanKlinik = this.collectSlotRows('tindakanKlinik');
         d.tindakanApotek = this.collectSlotRows('tindakanApotek');
@@ -238,7 +229,7 @@ window.AppPengaturanPembagian = {
         }
     },
 
-        renderResepKlinikBlock: function(index, doc) {
+    renderResepKlinikBlock: function(index, doc) {
         var html = '<div class="border border-slate-200 dark:border-slate-600 rounded-lg p-4 mb-4 bg-slate-50/50 relative">';
         html += '<button onclick="AppPengaturanPembagian.removeResepKlinik(' + index + ')" class="absolute top-3 right-3 text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
         html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 pr-8">';
@@ -371,7 +362,6 @@ window.AppPengaturanPembagian = {
         var psaTA = 100 - sumPersen('[id^="slot-persen-tindakanApotek-"]');
 
         // 5. Tunjangan Omzet
-        // Logika baru: 100% - total persen karyawan. Sisa persen itulah yang masuk PSA dari pool omzet.
         var psaOmzet = 100 - sumPersen('[id^="slot-persen-tunjanganOmzet-"]');
 
         // 6. Uang Makan

@@ -1,10 +1,9 @@
 /**
  * js/auth.js
- * Halaman Login & Sistem Autentikasi Firebase
+ * Halaman Login (Mode Overlay) & Sistem Autentikasi
  */
 
 window.AppAuth = {
-    // Render tampilan Login
     renderLogin: function() {
         var html = `
         <div class="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
@@ -35,25 +34,41 @@ window.AppAuth = {
                 <p class="text-center text-xs text-slate-400 mt-4">© 2024 Aulia System. All rights reserved.</p>
             </div>
         </div>`;
+
+        // Buat overlay fullscreen
+        var existing = document.getElementById('login-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'login-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.zIndex = '9999';
+        overlay.innerHTML = html;
+        document.body.appendChild(overlay);
         
-        document.getElementById('app').innerHTML = html;
         lucide.createIcons();
 
         // Event Listener Submit Login
-        document.getElementById('form-login').addEventListener('submit', function(e) {
-            e.preventDefault();
-            var email = document.getElementById('login-email').value;
-            var pass = document.getElementById('login-pass').value;
-            
-            Utils.toast('Mencoba login...', 'info');
-            firebase.auth().signInWithEmailAndPassword(email, pass)
-                .catch(function(err) {
-                    Utils.toast('Login Gagal: ' + err.message, 'error');
-                });
-        });
+        var form = overlay.querySelector('#form-login');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var email = overlay.querySelector('#login-email').value;
+                var pass = overlay.querySelector('#login-pass').value;
+                
+                Utils.toast('Mencoba login...', 'info');
+                firebase.auth().signInWithEmailAndPassword(email, pass)
+                    .catch(function(err) {
+                        Utils.toast('Login Gagal: ' + err.message, 'error');
+                    });
+            });
+        }
     },
 
-    // Logout
     logout: function() {
         firebase.auth().signOut().then(function() {
             Utils.toast('Berhasil logout.', 'success');

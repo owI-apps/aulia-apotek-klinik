@@ -102,7 +102,7 @@ const menuStructure = {
     ],
     keuangan: [
         { id: 'payroll', label: 'Payroll', icon: 'calculator', module: 'keuangan/payroll' },
-        { id: 'laporan-keuangan', label: 'Lap. Keuangan', icon: 'bar-chart-3', module: 'keuangan/laporan-keuangan' },
+        { id: 'laporan-keuangan', label: 'Lap. Keuangan', icon: 'bar-chart-3', module: 'keuangan/laporanKeuangan' },
         { id: 'akuntansi', label: 'Akuntansi', icon: 'book-open', module: 'keuangan/akuntansi' }
     ],
     pengaturan: [

@@ -17,7 +17,7 @@ window.AppPengaturanPembagian = {
         return html;
     },
 
-        init: function() {
+    init: function() {
         var pKaryawan = db.collection('karyawan').where('status', '==', 'aktif').get();
         var pConfig = db.collection('pengaturanPembagian').doc('global').get();
 
@@ -40,6 +40,10 @@ window.AppPengaturanPembagian = {
                 if (!Array.isArray(AppPengaturanPembagian.data.transport.slot)) AppPengaturanPembagian.data.transport.slot = [];
                 if (!Array.isArray(AppPengaturanPembagian.data.uangMakan.slot)) AppPengaturanPembagian.data.uangMakan.slot = [];
                 
+                // PELINDUNG UNTUK RACIK OBAT (DATA BARU)
+                if (!AppPengaturanPembagian.data.racikObat) AppPengaturanPembagian.data.racikObat = { nilai: 500, slot: [] };
+                if (!Array.isArray(AppPengaturanPembagian.data.racikObat.slot)) AppPengaturanPembagian.data.racikObat.slot = [];
+                
             } else {
                 AppPengaturanPembagian.data = AppPengaturanPembagian.getDefaultData();
                 db.collection('pengaturanPembagian').doc('global').set(AppPengaturanPembagian.data);
@@ -57,7 +61,8 @@ window.AppPengaturanPembagian = {
             tindakanApotek: [], // Array of slots
             tunjanganOmzet: { persen: 0, slot: [] },
             transport: { total: 0, slot: [] },
-            uangMakan: { slot: [] }
+            uangMakan: { slot: [] },
+            racikObat: { nilai: 500, slot: [] } // DATA BARU: Default nilai racik 500
         };
     },
 
@@ -118,9 +123,17 @@ window.AppPengaturanPembagian = {
         html += AppPengaturanPembagian.renderSlotRows('uangMakan', d.uangMakan.slot, false);
         html += '</div>';
 
-        // 8. TABEL MARGIN PSA (READONLY INFO)
+        // 8. RACIK OBAT (FITUR BARU)
+        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
+        html += '<h3 class="font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-2 text-lg mb-4"><i data-lucide="flask-conical" class="w-5 h-5"></i> 8. Racik Obat</h3>';
+        html += '<div class="mb-4 w-32">' + AppPengaturanPembagian.inputField('Nilai Racik', 'racikObat_nilai', d.racikObat.nilai, 'Rp') + '</div>';
+        html += '<p class="text-xs text-slate-400 mb-3 bg-slate-50 dark:bg-slate-900 p-2 rounded">Sumber: Nilai per resep racik. Sisa persen setelah dibagi karyawan masuk ke PSA.</p>';
+        html += AppPengaturanPembagian.renderSlotRows('racikObat', d.racikObat.slot, false);
+        html += '</div>';
+
+        // 9. TABEL MARGIN PSA (READONLY INFO)
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-6">';
-        html += '<h3 class="font-semibold text-gray-800 dark:text-white flex items-center gap-2 text-lg mb-4"><i data-lucide="landmark" class="w-5 h-5 text-slate-600"></i> 8. Pendapatan PSA (Margin Otomatis)</h3>';
+        html += '<h3 class="font-semibold text-gray-800 dark:text-white flex items-center gap-2 text-lg mb-4"><i data-lucide="landmark" class="w-5 h-5 text-slate-600"></i> 9. Pendapatan PSA (Margin Otomatis)</h3>';
         html += '<div id="psa-margin-info" class="text-sm space-y-2 text-slate-600 dark:text-slate-300"></div>';
         html += '</div>';
 
@@ -204,7 +217,7 @@ window.AppPengaturanPembagian = {
         return html;
     },
 
-    // --- 5, 6, 7 OMZET, TRANSPORT, UM ---
+    // --- 5, 6, 7, 8 OMZET, TRANSPORT, UM, RACIK ---
     renderSlotRows: function(prefix, slots, hasThr) {
         var html = '<div id="slots-' + prefix + '" class="space-y-2">';
         slots.forEach((s, i) => html += this.renderSlotRow(prefix + '-' + i, s, hasThr));
@@ -226,7 +239,7 @@ window.AppPengaturanPembagian = {
         return html;
     },
 
-                addSlotTo: function(parentKey, docIndex, slotKey) {
+    addSlotTo: function(parentKey, docIndex, slotKey) {
         var newSlot = { karyawanId: '', persen: 0, isTHR: false };
         
         if (parentKey === 'resepKlinik') {
@@ -277,8 +290,8 @@ window.AppPengaturanPembagian = {
         this.renderForm();
     },
 
-    // --- 8. HITUNG INFO PSA SECARA REALTIME ---
-               hitungInfoPSA: function() {
+    // --- 9. HITUNG INFO PSA SECARA REALTIME ---
+    hitungInfoPSA: function() {
         var el = document.getElementById('psa-margin-info');
         if(!el) return;
 
@@ -319,7 +332,12 @@ window.AppPengaturanPembagian = {
         document.querySelectorAll('[id^="slot-persen-uangMakan-"]').forEach(i => totUM += parseFloat(i.value) || 0);
         var psaUM = 100 - totUM;
 
-        // RENDER KE LAYAR (Sudah termasuk Sisa Omzet)
+        // 8. Racik Obat (HITUNG SISA PERSEN)
+        var totRO = 0;
+        document.querySelectorAll('[id^="slot-persen-racikObat-"]').forEach(i => totRO += parseFloat(i.value) || 0);
+        var psaRO = 100 - totRO;
+
+        // RENDER KE LAYAR (Sudah termasuk Sisa Racik Obat)
         el.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg"><span class="text-xs text-blue-600 dark:text-blue-400">a. Sisa Resep Klinik</span><p class="font-bold text-blue-800 dark:text-blue-300">${Utils.formatRupiah(psaResepKlinik)} <span class="text-xs font-normal">/ resep</span></p></div>
@@ -328,6 +346,7 @@ window.AppPengaturanPembagian = {
                 <div class="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg"><span class="text-xs text-teal-600 dark:text-teal-400">d. Sisa Tindakan Apotek</span><p class="font-bold text-teal-800 dark:text-teal-300">${psaTA}%</p></div>
                 <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg"><span class="text-xs text-emerald-600 dark:text-emerald-400">e. Sisa Tunjangan Omzet</span><p class="font-bold text-emerald-800 dark:text-emerald-300">${psaOmzet}%</p></div>
                 <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg"><span class="text-xs text-orange-600 dark:text-orange-400">f. Sisa Uang Makan</span><p class="font-bold text-orange-800 dark:text-orange-300">${psaUM}%</p></div>
+                <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg"><span class="text-xs text-indigo-600 dark:text-indigo-400">g. Sisa Racik Obat</span><p class="font-bold text-indigo-800 dark:text-indigo-300">${psaRO}%</p></div>
             </div>
             <p class="text-xs text-slate-400 mt-3 italic">*Nilai dihitung realtime. Jika minus, berarti pembagian melebihi sumber pendapatan.</p>
         `;
@@ -337,7 +356,7 @@ window.AppPengaturanPembagian = {
     simpan: function() {
         var d = this.data;
 
-                // 1. Resep Klinik
+        // 1. Resep Klinik
         d.resepKlinik = [];
         var rkBlocks = document.querySelectorAll('[id^="pb-rk-nilai-"]');
         rkBlocks.forEach((input, i) => {
@@ -380,6 +399,12 @@ window.AppPengaturanPembagian = {
 
         // 7. Uang Makan
         d.uangMakan = { slot: this.collectSlotRows('uangMakan') };
+
+        // 8. Racik Obat (SIMPAN DATA BARU)
+        d.racikObat = {
+            nilai: parseFloat(document.getElementById('pb-racikObat_nilai').value) || 0,
+            slot: this.collectSlotRows('racikObat')
+        };
 
         d.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
 

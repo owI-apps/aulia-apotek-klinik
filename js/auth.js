@@ -9,9 +9,7 @@ window.AppAuth = {
         <div class="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-slate-900 p-4">
             <div class="w-full max-w-md">
                 <div class="text-center mb-8">
-                    <div class="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl shadow-lg mb-4">
-                        <i data-lucide="heart-pulse" class="w-8 h-8 text-white"></i>
-                    </div>
+                    <img src="icon-512.png" alt="Logo Aulia" class="w-24 h-24 mx-auto mb-4 rounded-2xl shadow-lg object-cover">
                     <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Aulia Apotek Klinik</h1>
                     <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Silakan login untuk melanjutkan</p>
                 </div>

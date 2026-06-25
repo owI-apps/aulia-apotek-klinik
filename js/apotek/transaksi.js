@@ -1,5 +1,5 @@
 /**
- * js/apotekTransaksi.js
+ * js/apotek/transaksi.js
  * Transaksi Penjualan (Bebas, Resep Klinik, Resep) + Harga Racik
  */
 

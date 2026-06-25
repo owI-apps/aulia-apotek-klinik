@@ -1,0 +1,335 @@
+/**
+ * js/apotek/transaksi.js
+ * Transaksi Penjualan Apotek (Bebas, Resep Klinik, Resep Luar)
+ */
+
+window.AppApotekTransaksi = {
+    tipe: 'obat_bebas', // obat_bebas, resep_klinik, resep_luar
+    cart: [],
+    masterObat: [],
+    pengaturan: null,
+    resepList: [],
+
+    render: function() {
+        var html = '<div class="page-enter max-w-5xl">';
+        html += '  <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-1">Transaksi Penjualan</h2>';
+        html += '  <p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Input penjualan obat bebas dan resep dokter</p>';
+        html += '  <div id="trx-content"><div class="flex justify-center py-10"><div class="spinner"></div></div></div>';
+        html += '</div>';
+        return html;
+    },
+
+    init: function() {
+        // Load master obat dan pengaturan secara paralel
+        var pObat = db.collection('obat').get();
+        var pConfig = db.collection('pengaturanPembagian').doc('global').get();
+
+        Promise.all([pObat, pConfig]).then(results => {
+            AppApotekTransaksi.masterObat = [];
+            results[0].forEach(doc => { var d = doc.data(); d.id = doc.id; AppApotekTransaksi.masterObat.push(d); });
+            
+            if (results[1].exists) {
+                AppApotekTransaksi.pengaturan = results[1].data();
+            } else {
+                Utils.toast('Pengaturan pembagian belum diatur!', 'error');
+            }
+            AppApotekTransaksi.renderForm();
+        }).catch(err => Utils.toast('Gagal memuat data: ' + err.message, 'error'));
+    },
+
+    renderForm: function() {
+        var html = '';
+        
+        // PILIH TIPE TRANSAKSI
+        html += '<div class="grid grid-cols-3 gap-2 mb-4">';
+        html += '<button onclick="AppApotekTransaksi.setTipe(\'obat_bebas\')" id="btn-obat_bebas" class="border-2 border-slate-200 dark:border-slate-600 p-3 rounded-xl text-center transition hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 border-primary-500 bg-primary-50 dark:bg-primary-900/20"><i data-lucide="pill" class="w-5 h-5 mx-auto mb-1 text-primary-600 dark:text-primary-400"></i><p class="text-sm font-semibold text-primary-600 dark:text-primary-400">Obat Bebas</p></button>';
+        html += '<button onclick="AppApotekTransaksi.setTipe(\'resep_klinik\')" id="btn-resep_klinik" class="border-2 border-slate-200 dark:border-slate-600 p-3 rounded-xl text-center transition hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"><i data-lucide="file-text" class="w-5 h-5 mx-auto mb-1 text-slate-400"></i><p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Resep Klinik</p></button>';
+        html += '<button onclick="AppApotekTransaksi.setTipe(\'resep_luar\')" id="btn-resep_luar" class="border-2 border-slate-200 dark:border-slate-600 p-3 rounded-xl text-center transition hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"><i data-lucide="file-plus" class="w-5 h-5 mx-auto mb-1 text-slate-400"></i><p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Resep Luar</p></button>';
+        html += '</div>';
+
+        // HEADER DINAMIS BERDASARKAN TIPE
+        html += '<div id="trx-header-dynamic" class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4"></div>';
+
+        // KERANJANG OBAT
+        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
+        html += '<div class="flex justify-between items-center mb-3"><h3 class="font-semibold text-gray-800 dark:text-white">Daftar Item Obat</h3><button type="button" onclick="AppApotekTransaksi.addItem()" class="text-sm bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 px-3 py-1.5 rounded-lg font-medium hover:bg-primary-100">+ Tambah Obat</button></div>';
+        html += '<div id="trx-cart-container" class="space-y-2"><p class="text-sm text-slate-400 italic p-2">Tambahkan obat ke keranjang.</p></div>';
+        html += '</div>';
+
+        // TOTAL & SIMPAN
+        html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-6">';
+        html += '<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">';
+        html += '<div class="space-y-1 text-sm">';
+        html += '  <div class="flex justify-between gap-8"><span class="text-slate-500">Total Obat:</span><span id="trx-total-obat" class="font-medium text-gray-800 dark:text-white">Rp 0</span></div>';
+        html += '  <div class="flex justify-between gap-8"><span class="text-slate-500">Jasa Resep:</span><span id="trx-jasa-resep" class="font-medium text-gray-800 dark:text-white">Rp 0</span></div>';
+        html += '  <div class="flex justify-between gap-8"><span class="text-slate-500">Pembulatan:</span><span id="trx-pembulatan" class="font-medium text-amber-600">Rp 0</span></div>';
+        html += '  <div class="flex justify-between gap-8 text-lg"><span class="font-semibold text-gray-700 dark:text-gray-200">TOTAL BAYAR:</span><span id="trx-grand-total" class="font-bold text-primary-600">Rp 0</span></div>';
+        html += '</div>';
+        html += '<button onclick="AppApotekTransaksi.simpan()" class="bg-primary-600 hover:bg-primary-700 text-white font-bold px-8 py-3 rounded-xl shadow-lg transition-all text-sm flex items-center gap-2 w-full sm:w-auto justify-center"><i data-lucide="check-circle" class="w-5 h-5"></i> Proses & Simpan Transaksi</button>';
+        html += '</div></div>';
+
+        document.getElementById('trx-content').innerHTML = html;
+        lucide.createIcons();
+        this.setTipe('obat_bebas'); // Default tipe
+    },
+
+    setTipe: function(tipe) {
+        this.tipe = tipe;
+        this.cart = []; // Reset cart saat ganti tipe
+        var cfg = this.pengaturan;
+
+        // Update style tombol
+        ['obat_bebas', 'resep_klinik', 'resep_luar'].forEach(t => {
+            var btn = document.getElementById('btn-' + t);
+            if (t === tipe) {
+                btn.className = btn.className.replace('border-slate-200 dark:border-slate-600', 'border-primary-500 bg-primary-50 dark:bg-primary-900/20').replace('text-slate-600 dark:text-slate-300', 'text-primary-600 dark:text-primary-400');
+            } else {
+                btn.className = btn.className.replace('border-primary-500 bg-primary-50 dark:bg-primary-900/20', 'border-slate-200 dark:border-slate-600').replace('text-primary-600 dark:text-primary-400', 'text-slate-600 dark:text-slate-300');
+            }
+        });
+
+        // Render Header Dinamis
+        var headerHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+        
+        if (tipe === 'resep_klinik') {
+            headerHtml += '<div><label class="block text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Pilih Resep Klinik</label>';
+            headerHtml += '<select id="trx-resep-id" onchange="AppApotekTransaksi.onSelectResep()" class="w-full px-3 py-2 border border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih Resep Menunggu --</option>';
+            this.resepList.forEach(r => {
+                headerHtml += '<option value="' + r.id + '">' + r.namaPasien + ' (' + r.nomorRM + ') - ' + r.namaDokter + '</option>';
+            });
+            headerHtml += '</select></div>';
+        } else if (tipe === 'resep_luar') {
+            headerHtml += '<div><label class="block text-xs font-medium text-green-600 dark:text-green-400 mb-1">Dokter Pemberi Resep *</label>';
+            headerHtml += '<input type="text" id="trx-dokter-luar" class="w-full px-3 py-2 border border-green-300 dark:border-green-700 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="Nama Dokter Luar">';
+            headerHtml += '</div>';
+        }
+        
+        headerHtml += '<div><label class="block text-xs font-medium text-slate-500 mb-1">Pasien (Opsional)</label><input type="text" id="trx-pasien" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="Nama Pasien (untuk riwayat)"></div>';
+        headerHtml += '</div>';
+
+        document.getElementById('trx-header-dynamic').innerHTML = headerHtml;
+        document.getElementById('trx-cart-container').innerHTML = '<p class="text-sm text-slate-400 italic p-2">Tambahkan obat ke keranjang.</p>';
+        
+        this.hitungTotal();
+    },
+
+    onSelectResep: function() {
+        var id = document.getElementById('trx-resep-id').value;
+        if (id) {
+            var resep = this.resepList.find(r => r.id === id);
+            if (resep) {
+                document.getElementById('trx-pasien').value = resep.namaPasien;
+            }
+        }
+    },
+
+    addItem: function() {
+        var container = document.getElementById('trx-cart-container');
+        if (container.querySelector('p.italic')) container.innerHTML = '';
+
+        var idx = container.children.length;
+        var html = '<div id="trx-row-' + idx + '" class="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50/50 dark:bg-slate-900/30">';
+        html += '<div class="flex flex-col md:flex-row gap-3 items-start md:items-end">';
+        
+        // Dropdown Obat
+        html += '<div class="w-full md:w-2/5"><label class="block text-xs text-slate-500 mb-1">Pilih Obat</label>';
+        html += '<select id="trx-obat-' + idx + '" onchange="AppApotekTransaksi.onSelectObat(' + idx + ')" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih --</option>';
+        this.masterObat.forEach(o => {
+            var stokText = (o.stok || 0) > 0 ? (o.stok + ' ' + o.satuan) : '<span class="text-red-500">HABIS</span>';
+            html += '<option value="' + o.id + '">' + Utils.escapeHtml(o.namaObat) + ' (Stok: ' + stokText + ')</option>';
+        });
+        html += '</select></div>';
+
+        // Qty
+        html += '<div class="w-full md:w-1/6"><label class="block text-xs text-slate-500 mb-1">Qty</label><input type="number" id="trx-qty-' + idx + '" value="1" min="1" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm text-center" oninput="AppApotekTransaksi.hitungTotal()"></div>';
+        
+        // Harga Jual (Auto atau Manual)
+        html += '<div class="w-full md:w-1/6"><label class="block text-xs text-slate-500 mb-1">Harga Jual</label><input type="number" id="trx-harga-' + idx + '" value="0" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm text-right" oninput="AppApotekTransaksi.hitungTotal()"><p id="trx-hint-' + idx + '" class="text-[10px] text-slate-400 mt-1"></p></div>';
+        
+        // Subtotal
+        html += '<div class="w-full md:w-1/6"><label class="block text-xs text-slate-500 mb-1">Subtotal</label><div id="trx-sub-' + idx + '" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm text-right font-medium text-slate-600">Rp 0</div></div>';
+        
+        html += '<button type="button" onclick="AppApotekTransaksi.removeItem(' + idx + ')" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg self-end md:self-center"><i data-lucide="x" class="w-4 h-4"></i></button>';
+        html += '</div></div>';
+
+        container.insertAdjacentHTML('beforeend', html);
+        lucide.createIcons({ nodes: [container] });
+    },
+
+    onSelectObat: function(idx) {
+        var obatId = document.getElementById('trx-obat-' + idx).value;
+        var hintEl = document.getElementById('trx-hint-' + idx);
+        var hargaEl = document.getElementById('trx-harga-' + idx);
+        
+        if (obatId) {
+            var obat = this.masterObat.find(o => o.id === obatId);
+            if (obat) {
+                var isResep = (this.tipe === 'resep_klinik' || this.tipe === 'resep_luar');
+                var margin = this.pengaturan ? (this.pengaturan.marginResep || 0) : 0;
+                
+                if (isResep && margin > 0) {
+                    // AUTO HARGA RESEP
+                    var hargaAuto = Math.ceil(obat.hpp * (1 + (margin / 100)));
+                    hargaEl.value = hargaAuto;
+                    hintEl.textContent = 'HPP ' + Utils.formatRupiah(obat.hpp) + ' + ' + margin + '%';
+                    hintEl.className = 'text-[10px] text-emerald-600 mt-1';
+                } else {
+                    // MANUAL HARGA BEBAS
+                    hargaEl.value = obat.hargaJual || 0;
+                    hintEl.textContent = 'Harga Manual';
+                    hintEl.className = 'text-[10px] text-slate-400 mt-1';
+                }
+                this.hitungTotal();
+            }
+        } else {
+            hargaEl.value = 0;
+            hintEl.textContent = '';
+        }
+    },
+
+    removeItem: function(idx) {
+        var row = document.getElementById('trx-row-' + idx);
+        if (row) row.remove();
+        var container = document.getElementById('trx-cart-container');
+        if (container.children.length === 0) {
+            container.innerHTML = '<p class="text-sm text-slate-400 italic p-2">Tambahkan obat ke keranjang.</p>';
+        }
+        this.hitungTotal();
+    },
+
+    hitungTotal: function() {
+        var container = document.getElementById('trx-cart-container');
+        var rows = container.querySelectorAll('[id^="trx-row-"]');
+        var totalObat = 0;
+        var cfg = this.pengaturan;
+
+        rows.forEach(row => {
+            var idx = row.id.split('-').pop();
+            var qty = parseInt(document.getElementById('trx-qty-' + idx)?.value) || 0;
+            var harga = parseInt(document.getElementById('trx-harga-' + idx)?.value) || 0;
+            var sub = qty * harga;
+            document.getElementById('trx-sub-' + idx).textContent = Utils.formatRupiah(sub);
+            totalObat += sub;
+        });
+
+        // Hitung Jasa Resep jika ada
+        var jasaResep = 0;
+        if (this.tipe === 'resep_klinik' && cfg && cfg.resep) {
+            jasaResep = cfg.resep.nilaiResep || 0;
+        } else if (this.tipe === 'resep_luar' && cfg && cfg.resepLuar) {
+            jasaResep = cfg.resepLuar.nilaiResep || 0;
+        }
+
+        var totalRaw = totalObat + jasaResep;
+        var totalRounded = Math.ceil(totalRaw / 100) * 100; // Bulatkan ke ratusan
+        var pembulatan = totalRounded - totalRaw;
+
+        document.getElementById('trx-total-obat').textContent = Utils.formatRupiah(totalObat);
+        document.getElementById('trx-jasa-resep').textContent = (jasaResep > 0) ? Utils.formatRupiah(jasaResep) : '-';
+        document.getElementById('trx-pembulatan').textContent = (pembulatan > 0) ? Utils.formatRupiah(pembulatan) : '-';
+        document.getElementById('trx-grand-total').textContent = Utils.formatRupiah(totalRounded);
+    },
+
+    simpan: function() {
+        // Validasi Dokter untuk Resep Luar
+        if (this.tipe === 'resep_luar') {
+            var dokter = document.getElementById('trx-dokter-luar').value.trim();
+            if (!dokter) {
+                Utils.toast('Dokter pemberi resep wajib diisi untuk resep luar', 'error');
+                return;
+            }
+        }
+
+        // Validasi Resep Klinik
+        if (this.tipe === 'resep_klinik') {
+            var resepId = document.getElementById('trx-resep-id').value;
+            if (!resepId) {
+                Utils.toast('Pilih resep klinik yang akan diproses', 'error');
+                return;
+            }
+        }
+
+        // Kumpulkan item
+        var items = [];
+        var rows = document.querySelectorAll('[id^="trx-row-"]');
+        rows.forEach(row => {
+            var idx = row.id.split('-').pop();
+            var obatId = document.getElementById('trx-obat-' + idx)?.value;
+            if (obatId) {
+                var obat = this.masterObat.find(o => o.id === obatId);
+                items.push({
+                    obatId: obatId,
+                    namaObat: obat ? obat.namaObat : '-',
+                    kodeObat: obat ? obat.kodeObat : '-',
+                    hargaJual: parseInt(document.getElementById('trx-harga-' + idx).value) || 0,
+                    hargaBeli: obat ? obat.hpp : 0,
+                    jumlah: parseInt(document.getElementById('trx-qty-' + idx).value) || 0
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            Utils.toast('Tambahkan minimal 1 obat', 'error');
+            return;
+        }
+
+        // Hitung ulang final untuk disimpan
+        var totalObatFinal = items.reduce((sum, i) => sum + (i.jumlah * i.hargaJual), 0);
+        var cfg = this.pengaturan;
+        var jasaResepFinal = 0;
+        var resepIdFinal = null;
+
+        if (this.tipe === 'resep_klinik') {
+            resepIdFinal = document.getElementById('trx-resep-id').value;
+            jasaResepFinal = cfg ? (cfg.resep.nilaiResep || 0) : 0;
+        } else if (this.tipe === 'resep_luar') {
+            jasaResepFinal = cfg ? (cfg.resepLuar.nilaiResep || 0) : 0;
+        }
+
+        var totalRawFinal = totalObatFinal + jasaResepFinal;
+        var totalRoundedFinal = Math.ceil(totalRawFinal / 100) * 100;
+        var pembulatanFinal = totalRoundedFinal - totalRawFinal;
+
+        var obj = {
+            tipe: this.tipe,
+            tanggal: new Date().toISOString().split('T')[0],
+            pasien: document.getElementById('trx-pasien').value.trim(),
+            dokterId: (this.tipe === 'resep_klinik') ? (items[0]?.dokterId || '') : '',
+            dokterLuar: (this.tipe === 'resep_luar') ? document.getElementById('trx-dokter-luar').value.trim() : '',
+            resepId: resepIdFinal,
+            jasaResep: jasaResepFinal,
+            items: items,
+            totalObat: totalObatFinal,
+            pembulatan: pembulatanFinal,
+            totalAkhir: totalRoundedFinal,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        Utils.toast('Memproses transaksi...', 'info');
+
+        // 1. Simpan Transaksi
+        db.collection('transaksi').add(obj).then((docRef) => {
+            // 2. Update Stok Obat (Kurangi)
+            var batch = db.batch();
+            items.forEach(function(item) {
+                if (item.jumlah > 0) {
+                    var obatRef = db.collection('obat').doc(item.obatId);
+                    batch.update(obatRef, { stok: firebase.firestore.FieldValue.increment(-item.jumlah) });
+                }
+            });
+
+            // 3. Update Status Resep Klinik (jika tipe resep klinik)
+            if (obj.tipe === 'resep_klinik' && obj.resepId) {
+                var resepRef = db.collection('rekamMedis').doc(obj.resepId);
+                batch.update(resepRef, { statusResep: 'selesai' });
+            }
+
+            return batch.commit();
+        }).then(() => {
+            Utils.toast('Transaksi berhasil disimpan! Stok obat berkurang.', 'success');
+            AppApotekTransaksi.init(); // Reset form
+        }).catch(err => {
+            Utils.toast('Gagal menyimpan: ' + err.message, 'error');
+        });
+    }
+};

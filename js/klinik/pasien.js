@@ -95,4 +95,96 @@ window.AppKlinikPasien = {
 
     openForm: function(id) {
         var isEdit = !!id;
-        var
+        var p = isEdit ? this.data.find(x => x.id === id) : {};
+        
+        var nextRM = '';
+        if (!isEdit) {
+            var year = new Date().getFullYear();
+            var count = this.data.length + 1;
+            nextRM = 'RM-' + year + '-' + String(count).padStart(3, '0');
+        }
+
+        var html = '<div class="p-6">';
+        html += '<div class="flex items-center justify-between mb-5"><h3 class="text-lg font-semibold text-gray-800 dark:text-white">' + (isEdit ? 'Edit' : 'Tambah') + ' Pasien</h3><button onclick="Utils.closeModal()" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button></div>';
+        
+        html += '<form id="form-pasien" class="space-y-4">';
+        
+        html += '<div class="grid grid-cols-3 gap-4">';
+        html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. RM</label><input type="text" id="fp-rm" value="' + Utils.escapeHtml(isEdit ? (p.nomorRM || '') : nextRM) + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" required></div>';
+        html += '<div class="col-span-2"><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Lengkap *</label><input type="text" id="fp-nama" value="' + Utils.escapeHtml(p.nama || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" required></div>';
+        html += '</div>';
+
+        html += '<div class="grid grid-cols-2 gap-4">';
+        html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jenis Kelamin</label><select id="fp-jk" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="L"' + (p.jenisKelamin==='L'?' selected':'') + '>Laki-laki (L)</option><option value="P"' + (p.jenisKelamin==='P'?' selected':'') + '>Perempuan (P)</option></select></div>';
+        html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tanggal Lahir</label><input type="date" id="fp-tgl" value="' + (p.tanggalLahir || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm"></div>';
+        html += '</div>';
+
+        html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. Telepon</label><input type="text" id="fp-telp" value="' + Utils.escapeHtml(p.noTelepon || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="08xxxxxxxxxx"></div>';
+        html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Alamat</label><textarea id="fp-alamat" rows="2" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm">' + Utils.escapeHtml(p.alamat || '') + '</textarea></div>';
+
+        html += '<div class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">';
+        html += '<label class="block text-sm font-medium text-red-700 dark:text-red-400 mb-1">⚠️ Alergi Obat (Jika ada)</label>';
+        html += '<input type="text" id="fp-alergi" value="' + Utils.escapeHtml(p.alergiObat || '') + '" class="w-full px-3 py-2 border border-red-300 dark:border-red-800 dark:bg-red-900/50 dark:text-white rounded-lg text-sm" placeholder="Contoh: Penisilin, Aspirin">';
+        html += '</div>';
+
+        html += '<div class="flex justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">';
+        html += '<button type="button" onclick="Utils.closeModal()" class="px-4 py-2.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Batal</button>';
+        html += '<button type="submit" class="px-6 py-2.5 text-sm bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg">Simpan</button>';
+        html += '</div>';
+        
+        if (isEdit) html += '<input type="hidden" id="fp-id" value="' + p.id + '">';
+        html += '</form></div>';
+
+        Utils.openModal(html);
+
+        setTimeout(() => {
+            document.getElementById('form-pasien').addEventListener('submit', function(e) {
+                e.preventDefault();
+                AppKlinikPasien.simpan();
+            });
+        }, 100);
+    },
+
+    simpan: function() {
+        var idField = document.getElementById('fp-id');
+        var isEdit = !!idField;
+        
+        var obj = {
+            nomorRM: document.getElementById('fp-rm').value.trim(),
+            nama: document.getElementById('fp-nama').value.trim(),
+            jenisKelamin: document.getElementById('fp-jk').value,
+            tanggalLahir: document.getElementById('fp-tgl').value,
+            noTelepon: document.getElementById('fp-telp').value.trim(),
+            alamat: document.getElementById('fp-alamat').value.trim(),
+            alergiObat: document.getElementById('fp-alergi').value.trim(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        if (!obj.nama || !obj.nomorRM) {
+            Utils.toast('Nama dan No. RM wajib diisi', 'error');
+            return;
+        }
+
+        var p;
+        if (isEdit) {
+            p = db.collection('pasien').doc(idField.value).update(obj);
+        } else {
+            obj.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+            p = db.collection('pasien').add(obj);
+        }
+
+        p.then(() => {
+            Utils.toast('Data pasien berhasil disimpan!', 'success');
+            Utils.closeModal();
+            AppKlinikPasien.init();
+        }).catch(err => Utils.toast('Gagal: ' + err.message, 'error'));
+    },
+
+    hapus: function(id, nama) {
+        if (!confirm('Hapus data pasien "' + nama + '"?')) return;
+        db.collection('pasien').doc(id).delete().then(() => {
+            Utils.toast('Berhasil dihapus', 'success');
+            AppKlinikPasien.init();
+        }).catch(err => Utils.toast('Gagal: ' + err.message, 'error'));
+    }
+};

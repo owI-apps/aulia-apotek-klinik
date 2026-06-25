@@ -17,10 +17,11 @@ window.AppKlinikAntrian = {
         return html;
     },
 
-    init: function() {
+        init: function() {
         var today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         
-        var pAntrian = db.collection('antrian').where('tanggal', '==', today).orderBy('waktuDaftar').get();
+        // HAPUS .orderBy('waktuDaftar') agar tidak butuh Composite Index
+        var pAntrian = db.collection('antrian').where('tanggal', '==', today).get();
         var pPasien = db.collection('pasien').orderBy('nama').get();
         var pDokter = db.collection('karyawan').where('departemen', '==', 'Klinik').where('status', '==', 'aktif').get();
 
@@ -28,6 +29,14 @@ window.AppKlinikAntrian = {
             // Parse Antrian
             AppKlinikAntrian.data = [];
             results[0].forEach(function(doc) { var d = doc.data(); d.id = doc.id; AppKlinikAntrian.data.push(d); });
+
+            // URUTKAN MANUAL PAKAI JAVASCRIPT (Berdasarkan waktuDaftar)
+            AppKlinikAntrian.data.sort(function(a, b) {
+                // Jika waktuDaftar ada, urutkan berdasarkan itu. Jika null (karena baru diadd), taruh paling bawah.
+                var timeA = a.waktuDaftar ? a.waktuDaftar.seconds : 0;
+                var timeB = b.waktuDaftar ? b.waktuDaftar.seconds : 0;
+                return timeA - timeB; 
+            });
 
             // Parse Pasien
             AppKlinikAntrian.pasienList = [];
@@ -38,7 +47,10 @@ window.AppKlinikAntrian = {
             results[2].forEach(function(doc) { var d = doc.data(); d.id = doc.id; AppKlinikAntrian.dokterList.push(d); });
 
             AppKlinikAntrian.renderForm();
-        }).catch(function(err) { Utils.toast('Gagal memuat: ' + err.message, 'error'); });
+        }).catch(function(err) { 
+            console.error(err);
+            Utils.toast('Gagal memuat: ' + err.message, 'error'); 
+        });
     },
 
     renderForm: function() {

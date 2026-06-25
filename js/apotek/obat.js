@@ -1,11 +1,12 @@
 /**
  * js/apotek/obat.js
- * Master Data Obat & Stock
+ * Master Data Obat, Stock, & Import Excel
  */
 
 window.AppApotekObat = {
     data: [],
     searchQuery: '',
+    importData: [],
 
     render: function() {
         var html = '<div class="page-enter max-w-5xl">';
@@ -14,29 +15,29 @@ window.AppApotekObat = {
         html += '    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Obat & Stock</h2>';
         html += '    <p class="text-sm text-slate-500 dark:text-slate-400">Master data obat, HPP, harga jual, dan stok</p>';
         html += '  </div>';
-        html += '  <button onclick="AppApotekObat.openForm()" class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2 self-start"><i data-lucide="plus" class="w-4 h-4"></i> Tambah Obat</button>';
+        html += '  <div class="flex flex-wrap gap-2">';
+        html += '    <button onclick="AppApotekObat.downloadTemplate()" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i> Template Excel</button>';
+        html += '    <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2 cursor-pointer"><i data-lucide="upload" class="w-4 h-4"></i> Import Excel <input type="file" accept=".xlsx,.xls" class="hidden" onchange="AppApotekObat.handleFileUpload(event)"></label>';
+        html += '    <button onclick="AppApotekObat.openForm()" class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2"><i data-lucide="plus" class="w-4 h-4"></i> Tambah Manual</button>';
+        html += '  </div>';
         html += '</div>';
 
-        // Search Bar
         html += '<div class="mb-4 relative">';
         html += '  <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>';
         html += '  <input type="text" id="search-obat" placeholder="Cari nama obat atau kode..." class="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" oninput="AppApotekObat.onSearch(this.value)">';
         html += '</div>';
 
+        html += '<div id="import-preview-area" class="hidden mb-4"></div>';
         html += '<div id="obat-list"><div class="flex justify-center py-10"><div class="spinner"></div></div></div>';
         html += '</div>';
         return html;
     },
 
     init: function() {
-        // HAPUS orderBy biar tidak butuh Composite Index
         db.collection('obat').get().then(snap => {
             AppApotekObat.data = [];
             snap.forEach(doc => { var d = doc.data(); d.id = doc.id; AppApotekObat.data.push(d); });
-            
-            // Urutkan manual berdasarkan nama
             AppApotekObat.data.sort((a, b) => (a.namaObat || '').localeCompare(b.namaObat || ''));
-            
             AppApotekObat.renderList();
         }).catch(err => Utils.toast('Gagal memuat: ' + err.message, 'error'));
     },
@@ -78,7 +79,6 @@ window.AppApotekObat = {
 
         list.forEach(o => {
             var safeName = (o.namaObat || '-').replace(/'/g, "\\'");
-            // Warning stok menipis
             var stokClass = (o.stok <= (o.stokMinimum || 0)) ? 'text-red-600 font-bold' : 'text-slate-800 dark:text-white font-medium';
             var expClass = o.expDate && new Date(o.expDate) < new Date() ? 'text-red-500' : 'text-slate-500 dark:text-slate-400';
 
@@ -110,7 +110,6 @@ window.AppApotekObat = {
         html += '<div class="flex items-center justify-between mb-5"><h3 class="text-lg font-semibold text-gray-800 dark:text-white">' + (isEdit ? 'Edit' : 'Tambah') + ' Obat</h3><button onclick="Utils.closeModal()" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button></div>';
         
         html += '<form id="form-obat" class="space-y-4">';
-        
         html += '<div class="grid grid-cols-3 gap-4">';
         html += '<div class="col-span-2"><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Obat *</label><input type="text" id="fo-nama" value="' + Utils.escapeHtml(o.namaObat || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" required placeholder="Paracetamol 500mg"></div>';
         html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Kode Obat</label><input type="text" id="fo-kode" value="' + Utils.escapeHtml(o.kodeObat || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="OB-001"></div>';
@@ -142,7 +141,6 @@ window.AppApotekObat = {
         html += '</form></div>';
 
         Utils.openModal(html);
-
         setTimeout(() => {
             document.getElementById('form-obat').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -174,10 +172,8 @@ window.AppApotekObat = {
 
         var p;
         if (isEdit) {
-            // Saat edit, stok tidak diubah lewat sini
             p = db.collection('obat').doc(idField.value).update(obj);
         } else {
-            // Saat tambah baru, stok diambil dari input (defaultnya 0)
             obj.stok = parseFloat(document.getElementById('fo-stok').value) || 0;
             obj.createdAt = firebase.firestore.FieldValue.serverTimestamp();
             p = db.collection('obat').add(obj);
@@ -196,5 +192,143 @@ window.AppApotekObat = {
             Utils.toast('Berhasil dihapus', 'success');
             AppApotekObat.init();
         }).catch(err => Utils.toast('Gagal: ' + err.message, 'error'));
+    },
+
+    // ==========================================
+    // FITUR EXCEL IMPORT OBAT
+    // ==========================================
+    
+    downloadTemplate: function() {
+        var ws_data = [
+            ['Kode Obat', 'Nama Obat', 'Kategori', 'Satuan', 'HPP (Rp)', 'Harga Jual (Rp)', 'Stok Awal', 'Stok Minimum', 'Exp Date (YYYY-MM-DD)'],
+            ['OB-001', 'Paracetamol 500mg', 'Tablet', 'Strip', 5000, 8000, 100, 10, '2025-12-31'],
+        ];
+        var ws = XLSX.utils.aoa_to_sheet(ws_data);
+        ws['!cols'] = [{wch: 12}, {wch: 30}, {wch: 12}, {wch: 10}, {wch: 12}, {wch: 15}, {wch: 12}, {wch: 15}, {wch: 20}];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Master Obat");
+        XLSX.writeFile(wb, "Template_Import_Obat_Aulia.xlsx");
+    },
+
+    handleFileUpload: function(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var data = new Uint8Array(e.target.result);
+                var workbook = XLSX.read(data, { type: 'array' });
+                var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                var jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+                if (jsonData.length === 0) {
+                    Utils.toast('File Excel kosong.', 'error');
+                    return;
+                }
+
+                AppApotekObat.importData = jsonData.map(row => ({
+                    kodeObat: String(row['Kode Obat'] || '').trim(),
+                    namaObat: String(row['Nama Obat'] || '').trim(),
+                    kategori: String(row['Kategori'] || '').trim(),
+                    satuan: String(row['Satuan'] || '').trim(),
+                    hpp: parseFloat(row['HPP (Rp)']) || 0,
+                    hargaJual: parseFloat(row['Harga Jual (Rp)']) || 0,
+                    stok: parseInt(row['Stok Awal']) || 0,
+                    stokMinimum: parseInt(row['Stok Minimum']) || 0,
+                    expDate: String(row['Exp Date (YYYY-MM-DD)'] || '').trim()
+                })).filter(row => row.namaObat !== '' && row.hpp > 0);
+
+                AppApotekObat.renderImportPreview();
+            } catch (err) {
+                console.error(err);
+                Utils.toast('Gagal membaca file Excel. Pastikan format sesuai template.', 'error');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        event.target.value = '';
+    },
+
+    renderImportPreview: function() {
+        var data = this.importData;
+        var area = document.getElementById('import-preview-area');
+        if(!area) return;
+
+        var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-700 p-5">';
+        html += '<div class="flex justify-between items-center mb-4">';
+        html += '<h3 class="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2"><i data-lucide="package" class="w-5 h-5"></i> Preview Import Obat (' + data.length + ' Item)</h3>';
+        html += '<button onclick="document.getElementById(\'import-preview-area\').classList.add(\'hidden\')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>';
+        html += '</div>';
+        
+        html += '<div class="overflow-x-auto max-h-64 rounded-lg border border-slate-200 dark:border-slate-700 mb-4">';
+        html += '<table class="w-full text-xs">';
+        html += '<thead class="bg-slate-50 dark:bg-slate-900 sticky top-0"><tr><th class="px-2 py-2 text-left">Kode</th><th class="px-2 py-2 text-left">Nama Obat</th><th class="px-2 py-2 text-right">HPP</th><th class="px-2 py-2 text-right">Jual</th><th class="px-2 py-2 text-center">Stok</th></tr></thead><tbody>';
+        
+        var previewCount = Math.min(data.length, 50);
+        for (var i = 0; i < previewCount; i++) {
+            var o = data[i];
+            html += '<tr class="border-t border-slate-100 dark:border-slate-700">';
+            html += '<td class="px-2 py-1 font-mono">' + Utils.escapeHtml(o.kodeObat) + '</td>';
+            html += '<td class="px-2 py-1 font-medium">' + Utils.escapeHtml(o.namaObat) + '</td>';
+            html += '<td class="px-2 py-1 text-right">' + Utils.formatRupiah(o.hpp) + '</td>';
+            html += '<td class="px-2 py-1 text-right">' + Utils.formatRupiah(o.hargaJual) + '</td>';
+            html += '<td class="px-2 py-1 text-center">' + o.stok + ' ' + Utils.escapeHtml(o.satuan) + '</td>';
+            html += '</tr>';
+        }
+        
+        if (data.length > 50) {
+            html += '<tr><td colspan="5" class="px-2 py-2 text-center text-slate-400 italic">... dan ' + (data.length - 50) + ' item lainnya</td></tr>';
+        }
+        html += '</tbody></table></div>';
+
+        html += '<div class="flex justify-end gap-2">';
+        html += '<button onclick="document.getElementById(\'import-preview-area\').classList.add(\'hidden\')" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Batal</button>';
+        html += '<button onclick="AppApotekObat.executeImport()" class="px-6 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Konfirmasi Import Obat</button>';
+        html += '</div></div>';
+
+        area.innerHTML = html;
+        area.classList.remove('hidden');
+        lucide.createIcons();
+    },
+
+    executeImport: function() {
+        if (!confirm('Import ' + this.importData.length + ' data obat ke database?')) return;
+
+        var dataToImport = this.importData;
+        var batchSize = 400;
+        var batches = [];
+        
+        for (var i = 0; i < dataToImport.length; i += batchSize) {
+            var chunk = dataToImport.slice(i, i + batchSize);
+            var batch = db.batch();
+            chunk.forEach(function(obat) {
+                // Gunakan Kode Obat sebagai ID Dokumen (biar tidak duplikat)
+                var docId = obat.kodeObat ? obat.kodeObat.replace(/\s+/g, '_') : ('OB-' + Date.now() + '-' + i);
+                var docRef = db.collection('obat').doc(docId);
+                batch.set(docRef, {
+                    kodeObat: obat.kodeObat,
+                    namaObat: obat.namaObat,
+                    kategori: obat.kategori,
+                    satuan: obat.satuan,
+                    hpp: obat.hpp,
+                    hargaJual: obat.hargaJual,
+                    stok: obat.stok,
+                    stokMinimum: obat.stokMinimum,
+                    expDate: obat.expDate,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }); 
+            });
+            batches.push(batch.commit());
+        }
+
+        Utils.toast('Sedang memproses...', 'info');
+        Promise.all(batches).then(() => {
+            Utils.toast('Berhasil mengimport ' + dataToImport.length + ' data obat!', 'success');
+            document.getElementById('import-preview-area').classList.add('hidden');
+            AppApotekObat.init();
+        }).catch(err => {
+            Utils.toast('Gagal mengimport: ' + err.message, 'error');
+        });
     }
 };

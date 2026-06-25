@@ -79,7 +79,7 @@ window.AppPengaturanPembagian = {
         return el ? el.checked : false;
     },
 
-    syncStateFromDOM: function() {
+        syncStateFromDOM: function() {
         var d = this.data;
         if(!d) return;
 
@@ -103,8 +103,13 @@ window.AppPengaturanPembagian = {
         d.resepKlinik = [];
         var self = this;
         for (var i = 0; i < rkBlocks.length; i++) {
+            var docId = self.getStr('pb-rk-doc-'+i);
+            var karyawan = self.karyawanList.find(function(k){ return k.id === docId; });
+            
             d.resepKlinik.push({
-                dokterId: self.getStr('pb-rk-doc-'+i),
+                dokterId: docId,
+                namaDokter: karyawan ? karyawan.nama : '', // KUNCI: Simpan nama dokter
+                nipDokter: karyawan ? karyawan.nip : '',  // KUNCI: Simpan NIP dokter
                 nilaiResep: self.getVal('pb-rk-nilai-'+i),
                 jm: self.getVal('pb-rk-jm-'+i),
                 jd: self.getVal('pb-rk-jd-'+i),
@@ -123,7 +128,7 @@ window.AppPengaturanPembagian = {
         d.uangMakan.slot = this.collectSlotRows('uangMakan');
         d.racikObat.slot = this.collectSlotRows('racikObat');
     },
-
+    
     renderForm: function() {
         var d = this.data;
         var html = '';
@@ -224,11 +229,23 @@ window.AppPengaturanPembagian = {
         }
     },
 
-    renderResepKlinikBlock: function(index, doc) {
+        renderResepKlinikBlock: function(index, doc) {
         var html = '<div class="border border-slate-200 dark:border-slate-600 rounded-lg p-4 mb-4 bg-slate-50/50 relative">';
         html += '<button onclick="AppPengaturanPembagian.removeResepKlinik(' + index + ')" class="absolute top-3 right-3 text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
         html += '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 pr-8">';
-        html += '<div class="sm:col-span-2 lg:col-span-1"><label class="block text-xs font-medium text-slate-500 mb-1">Dokter</label>' + this.dropdownKaryawan('rk-doc-' + index, doc.dokterId) + '</div>';
+        
+        // Modifikasi Dropdown Dokter agar menampilkan NIP
+        var ddHtml = '<select id="rk-doc-' + index + '" class="w-full px-2 py-2 border border-slate-300 dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih Dokter --</option>';
+        this.karyawanList.forEach(k => {
+            if(k.departemen === 'Klinik' || k.jabatan === 'Dokter') {
+                var sel = (k.id === doc.dokterId) ? ' selected' : '';
+                var nipLabel = k.nip ? ' [' + k.nip + ']' : '';
+                ddHtml += '<option value="' + k.id + '"' + sel + '>' + Utils.escapeHtml(k.nama) + nipLabel + '</option>';
+            }
+        });
+        ddHtml += '</select>';
+        
+        html += '<div class="sm:col-span-2 lg:col-span-1"><label class="block text-xs font-medium text-slate-500 mb-1">Dokter Klinik</label>' + ddHtml + '</div>';
         html += this.inputField('Nilai Resep', 'rk-nilai-' + index, doc.nilaiResep, 'Rp');
         html += this.inputField('Jasa Medis (JM)', 'rk-jm-' + index, doc.jm, 'Rp');
         html += this.inputField('Jasa Dokter (JD)', 'rk-jd-' + index, doc.jd, 'Rp');
@@ -251,7 +268,7 @@ window.AppPengaturanPembagian = {
         html += '</div>';
         return html;
     },
-
+    
     renderSlotSection: function(dataKey, title, color, slots, hasThr) {
         var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
         html += '<div class="flex justify-between items-center mb-4"><h3 class="font-semibold text-' + color + '-600 flex items-center gap-2 text-lg"><i data-lucide="stethoscope" class="w-5 h-5"></i> ' + title + '</h3><button onclick="AppPengaturanPembagian.addSlotTo(\'' + dataKey + '\')" class="text-sm bg-' + color + '-50 text-' + color + '-600 px-3 py-1.5 rounded-lg font-medium">+ Tambah</button></div>';

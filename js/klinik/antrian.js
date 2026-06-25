@@ -181,7 +181,7 @@ window.AppKlinikAntrian = {
                 
                 if (a.status === 'dilayani') {
                     // Tombol ini nanti akan menuju Rekam Medis
-                    html += '    <button onclick="window.TEMP_ANTRIAN_ID=\'' + a.id + '\'; navigateTo(\'klinik/rekam-medis\', \'Rekam Medis\')" class="text-xs bg-primary-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-primary-700 flex items-center gap-1"><i data-lucide="stethoscope" class="w-3 h-3"></i> Buka RM</button>';
+                    html += '    <button onclick="window.TEMP_ANTRIAN_ID=\'' + a.id + '\'; navigateTo(\'klinik/rekamMedis\', \'Rekam Medis\')" class="text-xs bg-primary-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-primary-700 flex items-center gap-1"><i data-lucide="stethoscope" class="w-3 h-3"></i> Buka RM</button>';
                     html += '    <button onclick="AppKlinikAntrian.selesai(\'' + a.id + '\')" class="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 px-3 py-1.5 rounded-lg font-medium hover:bg-green-200">Selesai</button>';
                 }
                 

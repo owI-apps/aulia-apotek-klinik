@@ -14,8 +14,20 @@ window.AppKlinikPasien = {
         html += '    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Data Pasien</h2>';
         html += '    <p class="text-sm text-slate-500 dark:text-slate-400">Master data pasien klinik & apotek</p>';
         html += '  </div>';
-        html += '  <button onclick="AppKlinikPasien.openForm()" class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2 self-start"><i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Pasien</button>';
+        html += '<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">';
+        html += '  <div>';
+        html += '    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Data Pasien</h2>';
+        html += '    <p class="text-sm text-slate-500 dark:text-slate-400">Master data pasien klinik & apotek</p>';
+        html += '  </div>';
+        html += '  <div class="flex flex-wrap gap-2">';
+        html += '    <button onclick="AppKlinikPasien.downloadTemplate()" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2"><i data-lucide="download" class="w-4 h-4"></i> Template Excel</button>';
+        html += '    <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2 cursor-pointer"><i data-lucide="upload" class="w-4 h-4"></i> Import Excel <input type="file" accept=".xlsx,.xls" class="hidden" onchange="AppKlinikPasien.handleFileUpload(event)"></label>';
+        html += '    <button onclick="AppKlinikPasien.openForm()" class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2"><i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Manual</button>';
+        html += '  </div>';
         html += '</div>';
+        
+        // Area Preview Import
+        html += '<div id="import-preview-area" class="hidden mb-4"></div>';
 
         // Search Bar
         html += '<div class="mb-4 relative">';
@@ -186,5 +198,154 @@ window.AppKlinikPasien = {
             Utils.toast('Berhasil dihapus', 'success');
             AppKlinikPasien.init();
         }).catch(err => Utils.toast('Gagal: ' + err.message, 'error'));
+    }
+
+        // ==========================================
+    // FITUR EXCEL IMPORT
+    // ==========================================
+    
+    downloadTemplate: function() {
+        // Membuat file Excel template kosong secara langsung di browser
+        var ws_data = [
+            ['No. RM', 'Nama Lengkap', 'L/P', 'Tanggal Lahir (YYYY-MM-DD)', 'No. Telepon', 'Alamat', 'Alergi Obat'],
+            ['RM-2011-001', 'Contoh Nama Pasien', 'L', '1985-05-15', '081234567890', 'Jl. Contoh No. 1', 'Tidak ada'],
+        ];
+        var ws = XLSX.utils.aoa_to_sheet(ws_data);
+        
+        // Atur lebar kolom biar rapi saat dibuka
+        ws['!cols'] = [
+            {wch: 15}, {wch: 30}, {wch: 5}, {wch: 25}, {wch: 18}, {wch: 30}, {wch: 20}
+        ];
+
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Data Pasien");
+        XLSX.writeFile(wb, "Template_Import_Pasien_Aulia.xlsx");
+    },
+
+    handleFileUpload: function(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var data = new Uint8Array(e.target.result);
+                var workbook = XLSX.read(data, { type: 'array' });
+                var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                var jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+
+                if (jsonData.length === 0) {
+                    Utils.toast('File Excel kosong.', 'error');
+                    return;
+                }
+
+                // Simpan sementara ke state untuk di-preview
+                AppKlinikPasien.importData = jsonData.map(row => ({
+                    nomorRM: String(row['No. RM'] || '').trim(),
+                    nama: String(row['Nama Lengkap'] || '').trim(),
+                    jenisKelamin: String(row['L/P'] || 'L').trim().toUpperCase().substring(0,1),
+                    tanggalLahir: String(row['Tanggal Lahir (YYYY-MM-DD)'] || '').trim(),
+                    noTelepon: String(row['No. Telepon'] || '').trim(),
+                    alamat: String(row['Alamat'] || '').trim(),
+                    alergiObat: String(row['Alergi Obat'] || '').trim()
+                })).filter(row => row.nomorRM !== '' && row.nama !== ''); // Hanya yang isi RM dan Nama
+
+                AppKlinikPasien.renderImportPreview();
+            } catch (err) {
+                console.error(err);
+                Utils.toast('Gagal membaca file Excel. Pastikan format sesuai template.', 'error');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        // Reset input file supaya bisa upload file yang sama lagi
+        event.target.value = '';
+    },
+
+    renderImportPreview: function() {
+        var data = this.importData;
+        var area = document.getElementById('import-preview-area');
+        if(!area) return;
+
+        var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border-2 border-dashed border-emerald-300 dark:border-emerald-700 p-5">';
+        html += '<div class="flex justify-between items-center mb-4">';
+        html += '<h3 class="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2"><i data-lucide="file-check" class="w-5 h-5"></i> Preview Data Import (' + data.length + ' Pasien)</h3>';
+        html += '<button onclick="document.getElementById(\'import-preview-area\').classList.add(\'hidden\')" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>';
+        html += '</div>';
+        
+        html += '<div class="overflow-x-auto max-h-64 rounded-lg border border-slate-200 dark:border-slate-700 mb-4">';
+        html += '<table class="w-full text-xs">';
+        html += '<thead class="bg-slate-50 dark:bg-slate-900 sticky top-0"><tr><th class="px-2 py-2 text-left">No. RM</th><th class="px-2 py-2 text-left">Nama</th><th class="px-2 py-2 text-left">L/P</th><th class="px-2 py-2 text-left">Telp</th><th class="px-2 py-2 text-left">Alergi</th></tr></thead><tbody>';
+        
+        // Tampilkan maksimal 50 baris pertama sebagai preview
+        var previewCount = Math.min(data.length, 50);
+        for (var i = 0; i < previewCount; i++) {
+            var p = data[i];
+            html += '<tr class="border-t border-slate-100 dark:border-slate-700">';
+            html += '<td class="px-2 py-1 font-mono">' + Utils.escapeHtml(p.nomorRM) + '</td>';
+            html += '<td class="px-2 py-1 font-medium">' + Utils.escapeHtml(p.nama) + '</td>';
+            html += '<td class="px-2 py-1">' + Utils.escapeHtml(p.jenisKelamin) + '</td>';
+            html += '<td class="px-2 py-1">' + Utils.escapeHtml(p.noTelepon) + '</td>';
+            html += '<td class="px-2 py-1 text-red-500">' + Utils.escapeHtml(p.alergiObat || '-') + '</td>';
+            html += '</tr>';
+        }
+        
+        if (data.length > 50) {
+            html += '<tr><td colspan="5" class="px-2 py-2 text-center text-slate-400 italic">... dan ' + (data.length - 50) + data lainnya</td></tr>';
+        }
+        html += '</tbody></table></div>';
+
+        html += '<div class="flex justify-end gap-2">';
+        html += '<button onclick="document.getElementById(\'import-preview-area\').classList.add(\'hidden\')" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Batal</button>';
+        html += '<button onclick="AppKlinikPasien.executeImport()" class="px-6 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Konfirmasi Import ke Database</button>';
+        html += '</div></div>';
+
+        area.innerHTML = html;
+        area.classList.remove('hidden');
+        lucide.createIcons();
+    },
+
+    executeImport: function() {
+        if (!confirm('Import ' + this.importData.length + ' data pasien ke database? Data yang No. RM-nya sama akan ditimpa.')) return;
+
+        var btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner w-4 h-4 border-2 border-white"></div> Memproses...';
+
+        var dataToImport = this.importData;
+        var batchSize = 400; // Firestore limit batch write adalah 500, kita pakai 400 aman
+        var batches = [];
+        
+        for (var i = 0; i < dataToImport.length; i += batchSize) {
+            var chunk = dataToImport.slice(i, i + batchSize);
+            var batch = db.batch();
+            chunk.forEach(pasien => {
+                // Cari apakah No. RM sudah ada di database (untuk update, bukan duplikat)
+                // Kita simpan berdasarkan ID No. RM supaya gak dobel
+                var docRef = db.collection('pasien').doc(pasien.nomorRM);
+                batch.set(docRef, {
+                    nomorRM: pasien.nomorRM,
+                    nama: pasien.nama,
+                    jenisKelamin: pasien.jenisKelamin,
+                    tanggalLahir: pasien.tanggalLahir,
+                    noTelepon: pasien.noTelepon,
+                    alamat: pasien.alamat,
+                    alergiObat: pasien.alergiObat,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }); // merge: true artinya kalau ID sudah ada, cuma diupdate, tidak error
+            });
+            batches.push(batch.commit());
+        }
+
+        Promise.all(batches).then(() => {
+            Utils.toast('Berhasil mengimport ' + dataToImport.length + ' data pasien!', 'success');
+            document.getElementById('import-preview-area').classList.add('hidden');
+            AppKlinikPasien.init(); // Refresh tabel utama
+        }).catch(err => {
+            Utils.toast('Gagal mengimport: ' + err.message, 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> Konfirmasi Import ke Database';
+            lucide.createIcons();
+        });
     }
 };

@@ -311,7 +311,6 @@ window.AppApotekTransaksi = {
             }
         });
 
-        // Hitung Jasa Resep
                 // Hitung jasa resep
         var jasaResep = 0;
         if (this.tipe === 'resep_klinik' && cfg && Array.isArray(cfg.resepKlinik)) {
@@ -323,7 +322,7 @@ window.AppApotekTransaksi = {
                     // 1. Cari berdasarkan dokterId
                     var skemaDokter = cfg.resepKlinik.find(function(d) { return d.dokterId === resepData.dokterId; });
                     
-                    // 2. Fallback: Cari berdasarkan namaDokter jika ID tidak ketemu
+                    // 2. Fallback: Cari berdasarkan namaDokter
                     if (!skemaDokter && resepData.namaDokter) {
                         skemaDokter = cfg.resepKlinik.find(function(d) { return d.namaDokter === resepData.namaDokter; });
                     }
@@ -339,7 +338,7 @@ window.AppApotekTransaksi = {
                 jasaResep = cfg.resepLuar.nilaiResep;
             }
         }
-
+        
         var totalRaw = totalObat + totalRacik + jasaResep;
         var totalRounded = Math.ceil(totalRaw / 1000) * 1000; // Pembulatan ke atas kelipatan 1000
         var pembulatan = totalRounded - totalRaw;
@@ -404,7 +403,7 @@ window.AppApotekTransaksi = {
         var jasaResepFinal = 0;
         var resepIdFinal = null, dokterIdFinal = null, dokterLuarFinal = null;
 
-        if (this.tipe === 'resep_klinik') {
+                if (this.tipe === 'resep_klinik') {
             resepIdFinal = document.getElementById('trx-resep-id').value;
             var resepData = this.resepList.find(function(r) { return r.id === resepIdFinal; });
             if (resepData) {
@@ -421,7 +420,7 @@ window.AppApotekTransaksi = {
                     if (skemaDokter) jasaResepFinal = skemaDokter.nilaiResep || 0;
                 }
             }
-        } else if (this.tipe === 'resep_luar') {            
+        } else if (this.tipe === 'resep_luar') {
             dokterLuarFinal = document.getElementById('trx-dokter-luar').value.trim();
             if (cfg && cfg.resepLuar) jasaResepFinal = cfg.resepLuar.nilaiResep || 0;
         }

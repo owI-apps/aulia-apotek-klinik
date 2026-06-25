@@ -1,7 +1,7 @@
 /**
  * js/pengaturan/pembagian.js
  * REVOLUSI SKEMA: Pembagian sangat detail per orang & per dokter.
- * FITUR: Sync DOM Realtime, Snapshot History, Perhitungan PSA Akurat.
+ * FIX: Sync DOM Bulletproof, Logika Omzet PSA benar, Pastikan data push ke Firebase.
  */
 
 window.AppPengaturanPembagian = {
@@ -32,7 +32,7 @@ window.AppPengaturanPembagian = {
                 var defaultData = self.getDefaultData();
                 self.data = Object.assign({}, defaultData, rawData);
                 
-                // Pelindung Array
+                // Pelindung Array & Object
                 if (!Array.isArray(self.data.resepKlinik)) self.data.resepKlinik = [];
                 if (!Array.isArray(self.data.tindakanKlinik)) self.data.tindakanKlinik = [];
                 if (!Array.isArray(self.data.tindakanApotek)) self.data.tindakanApotek = [];
@@ -62,38 +62,60 @@ window.AppPengaturanPembagian = {
     },
 
     // ==========================================
-    // FUNGSI KRITIS: Singkronisasi Input ke Memori
-    // Mencegah data balik ke 0 saat nambah baris
+    // FUNGSI PENGAMAN EKSTRIM (Baca DOM Tanpa Error)
     // ==========================================
+    getVal: function(id) {
+        var el = document.getElementById(id);
+        if (!el) return 0;
+        var val = parseFloat(el.value);
+        return isNaN(val) ? 0 : val;
+    },
+    getStr: function(id) {
+        var el = document.getElementById(id);
+        return el ? el.value : '';
+    },
+    isChecked: function(id) {
+        var el = document.getElementById(id);
+        return el ? el.checked : false;
+    },
+
     syncStateFromDOM: function() {
         var d = this.data;
         if(!d) return;
 
-        // Simpan input biasa
-        d.resepLuar.nilaiResep = parseFloat(document.getElementById('pb-resepLuar_nilaiResep')?.value) || 0;
-        d.resepLuar.potonganDokter = parseFloat(document.getElementById('pb-resepLuar_potonganDokter')?.value) || 0;
-        d.marginResep = parseFloat(document.getElementById('pb-marginResep')?.value) || 0;
-        d.tunjanganOmzet.persen = parseFloat(document.getElementById('pb-omzet_persen')?.value) || 0;
-        d.transport.total = parseFloat(document.getElementById('pb-transport_total')?.value) || 0;
-        d.racikObat.nilai = parseFloat(document.getElementById('pb-racikObat_nilai')?.value) || 0;
+        // Init jika undefined
+        d.resepLuar = d.resepLuar || {};
+        d.tunjanganOmzet = d.tunjanganOmzet || {};
+        d.transport = d.transport || {};
+        d.uangMakan = d.uangMakan || {};
+        d.racikObat = d.racikObat || {};
 
-        // Simpan Resep Klinik
+        // Ambil semua input biasa
+        d.resepLuar.nilaiResep = this.getVal('pb-resepLuar_nilaiResep');
+        d.resepLuar.potonganDokter = this.getVal('pb-resepLuar_potonganDokter');
+        d.marginResep = this.getVal('pb-marginResep');
+        d.tunjanganOmzet.persen = this.getVal('pb-omzet_persen');
+        d.transport.total = this.getVal('pb-transport_total');
+        d.racikObat.nilai = this.getVal('pb-racikObat_nilai');
+
+        // Ambil Resep Klinik
         var rkBlocks = document.querySelectorAll('[id^="pb-rk-nilai-"]');
         d.resepKlinik = [];
-        rkBlocks.forEach((input, i) => {
+        var self = this;
+        for (var i = 0; i < rkBlocks.length; i++) {
             d.resepKlinik.push({
-                dokterId: document.getElementById('pb-rk-doc-'+i)?.value,
-                nilaiResep: parseFloat(input.value) || 0,
-                jm: parseFloat(document.getElementById('pb-rk-jm-'+i)?.value) || 0,
-                jd: parseFloat(document.getElementById('pb-rk-jd-'+i)?.value) || 0,
-                poolKaryKlinik: parseFloat(document.getElementById('pb-rk-poolKlinik-'+i)?.value) || 0,
-                slotKaryKlinik: this.collectSlotRows('rk-klinik-'+i),
-                poolKaryApotek: parseFloat(document.getElementById('pb-rk-poolApotek-'+i)?.value) || 0,
-                slotKaryApotek: this.collectSlotRows('rk-apotek-'+i)
+                dokterId: self.getStr('pb-rk-doc-'+i),
+                nilaiResep: self.getVal('pb-rk-nilai-'+i),
+                jm: self.getVal('pb-rk-jm-'+i),
+                jd: self.getVal('pb-rk-jd-'+i),
+                poolKaryKlinik: self.getVal('pb-rk-poolKlinik-'+i),
+                slotKaryKlinik: self.collectSlotRows('rk-klinik-'+i),
+                poolKaryApotek: self.getVal('pb-rk-poolApotek-'+i),
+                slotKaryApotek: self.collectSlotRows('rk-apotek-'+i)
             });
-        });
+        }
 
-        // Simpan Slots
+        // Ambil Slots
         d.tindakanKlinik = this.collectSlotRows('tindakanKlinik');
         d.tindakanApotek = this.collectSlotRows('tindakanApotek');
         d.tunjanganOmzet.slot = this.collectSlotRows('tunjanganOmzet');
@@ -110,7 +132,7 @@ window.AppPengaturanPembagian = {
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
         html += '<div class="flex justify-between items-center mb-4"><h3 class="font-semibold text-blue-600 flex items-center gap-2 text-lg"><i data-lucide="file-text" class="w-5 h-5"></i> 1. Resep Klinik</h3><button onclick="AppPengaturanPembagian.addResepKlinik()" class="text-sm bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg font-medium">+ Tambah Skema Dokter</button></div>';
         html += '<div id="resep-klinik-container">';
-        if(d.resepKlinik.length === 0) html += '<p class="text-sm text-slate-400 italic p-2">Belum ada skema.</p>';
+        if(d.resepKlinik.length === 0) html += '<p class="text-sm text-slate-400 italic p-2">Belum ada skema. Klik tambah untuk buat skema per dokter.</p>';
         else d.resepKlinik.forEach((doc, i) => html += this.renderResepKlinikBlock(i, doc));
         html += '</div></div>';
 
@@ -137,6 +159,7 @@ window.AppPengaturanPembagian = {
         html += '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4">';
         html += '<h3 class="font-semibold text-emerald-600 flex items-center gap-2 text-lg mb-4"><i data-lucide="trending-up" class="w-5 h-5"></i> 5. Tunjangan Omzet</h3>';
         html += '<div class="mb-4 w-32">' + this.inputField('Persen Margin Obat', 'omzet_persen', d.tunjanganOmzet.persen, '%') + '</div>';
+        html += '<p class="text-xs text-slate-400 mb-3 bg-slate-50 p-2 rounded">Sumber: Persen ini dikalikan total margin penjualan obat. Sisa setelah dibagi ke karyawan masuk ke PSA.</p>';
         html += this.renderSlotRows('tunjanganOmzet', d.tunjanganOmzet.slot, false);
         html += '</div>';
 
@@ -188,7 +211,7 @@ window.AppPengaturanPembagian = {
     },
 
     addResepKlinik: function() {
-        this.syncStateFromDOM(); // PAHAMI PENTINGNYA INI
+        this.syncStateFromDOM(); 
         this.data.resepKlinik.push({ dokterId: '', nilaiResep: 0, jm: 0, jd: 0, poolKaryKlinik: 0, slotKaryKlinik: [], poolKaryApotek: 0, slotKaryApotek: [] });
         this.renderForm();
     },
@@ -260,7 +283,7 @@ window.AppPengaturanPembagian = {
     },
 
     addSlotTo: function(parentKey, docIndex, slotKey) {
-        this.syncStateFromDOM(); // PAHAMI PENTINGNYA INI
+        this.syncStateFromDOM(); 
         var newSlot = { karyawanId: '', persen: 0, isTHR: false };
         
         if (parentKey === 'resepKlinik') {
@@ -279,7 +302,7 @@ window.AppPengaturanPembagian = {
     },
 
     removeSlotRow: function(rowId) {
-        this.syncStateFromDOM(); // PAHAMI PENTINGNYA INI
+        this.syncStateFromDOM(); 
         var parts = rowId.split('-');
         if (parts[0] === 'rk') {
             var type = parts[1]; var docIdx = parseInt(parts[2]); var slotIdx = parseInt(parts[3]);
@@ -301,35 +324,34 @@ window.AppPengaturanPembagian = {
         var el = document.getElementById('psa-margin-info');
         if(!el) return;
 
-        // Ambil nilai mentah dari DOM (Realtime)
-        var getVal = (id) => parseFloat(document.getElementById(id)?.value) || 0;
-        var sumPersen = (selector) => {
+        var sumPersen = function(selector) {
             var tot = 0;
-            document.querySelectorAll(selector).forEach(i => tot += parseFloat(i.value) || 0);
+            document.querySelectorAll(selector).forEach(function(i) { tot += parseFloat(i.value) || 0; });
             return tot;
         };
 
         // 1. Resep Klinik
         var psaResepKlinik = 0;
-        document.querySelectorAll('[id^="pb-rk-nilai-"]').forEach((input, i) => {
-            psaResepKlinik += getVal('pb-rk-nilai-'+i) - getVal('pb-rk-jm-'+i) - getVal('pb-rk-jd-'+i) - getVal('pb-rk-poolKlinik-'+i) - getVal('pb-rk-poolApotek-'+i);
-        });
+        var rkBlocks = document.querySelectorAll('[id^="pb-rk-nilai-"]');
+        for (var i = 0; i < rkBlocks.length; i++) {
+            psaResepKlinik += this.getVal('pb-rk-nilai-'+i) - this.getVal('pb-rk-jm-'+i) - this.getVal('pb-rk-jd-'+i) - this.getVal('pb-rk-poolKlinik-'+i) - this.getVal('pb-rk-poolApotek-'+i);
+        }
 
         // 2. Resep Luar
-        var psaResepLuar = getVal('pb-resepLuar_nilaiResep') - getVal('pb-resepLuar_potonganDokter');
+        var psaResepLuar = this.getVal('pb-resepLuar_nilaiResep') - this.getVal('pb-resepLuar_potonganDokter');
 
-        // 3 & 4. Tindakan (Sisa dari 100%)
+        // 3 & 4. Tindakan
         var psaTK = 100 - sumPersen('[id^="slot-persen-tindakanKlinik-"]');
         var psaTA = 100 - sumPersen('[id^="slot-persen-tindakanApotek-"]');
 
-        // 5. Tunjangan Omzet (Sisa dari Total Persen yang ditentukan)
-        var psaOmzet = getVal('pb-omzet_persen') - sumPersen('[id^="slot-persen-tunjanganOmzet-"]');
+        // 5. Tunjangan Omzet
+        // Logika baru: 100% - total persen karyawan. Sisa persen itulah yang masuk PSA dari pool omzet.
+        var psaOmzet = 100 - sumPersen('[id^="slot-persen-tunjanganOmzet-"]');
 
-        // 6 & 7. Transport & Uang Makan (Sisa dari 100%)
+        // 6. Uang Makan
         var psaUM = 100 - sumPersen('[id^="slot-persen-uangMakan-"]');
 
         // 8. Racik Obat
-        // Sisa persen racik dari 100% masuk ke PSA
         var psaRO = 100 - sumPersen('[id^="slot-persen-racikObat-"]');
 
         el.innerHTML = `
@@ -338,7 +360,7 @@ window.AppPengaturanPembagian = {
                 <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"><span class="text-xs text-green-600">b. Sisa Resep Luar</span><p class="font-bold text-green-800 dark:text-green-300">${Utils.formatRupiah(psaResepLuar)} <span class="text-xs font-normal">/ resep</span></p></div>
                 <div class="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg"><span class="text-xs text-purple-600">c. Sisa Tindakan Klinik</span><p class="font-bold text-purple-800 dark:text-purple-300">${psaTK}%</p></div>
                 <div class="p-3 bg-teal-50 dark:bg-teal-900/20 rounded-lg"><span class="text-xs text-teal-600">d. Sisa Tindakan Apotek</span><p class="font-bold text-teal-800 dark:text-teal-300">${psaTA}%</p></div>
-                <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg"><span class="text-xs text-emerald-600">e. Sisa Tunjangan Omzet</span><p class="font-bold text-emerald-800 dark:text-emerald-300">${psaOmzet}%</p></div>
+                <div class="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg"><span class="text-xs text-emerald-600">e. Sisa Tunjangan Omzet</span><p class="font-bold text-emerald-800 dark:text-emerald-300">${psaOmzet}% <span class="text-xs font-normal">(dari pool ${this.getVal('pb-omzet_persen')}%)</span></p></div>
                 <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg"><span class="text-xs text-orange-600">f. Sisa Uang Makan</span><p class="font-bold text-orange-800 dark:text-orange-300">${psaUM}%</p></div>
                 <div class="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg"><span class="text-xs text-indigo-600">g. Sisa Racik Obat</span><p class="font-bold text-indigo-800 dark:text-indigo-300">${psaRO}%</p></div>
             </div>
@@ -347,10 +369,10 @@ window.AppPengaturanPembagian = {
     },
     
     // ==========================================
-    // SIMPAN KE FIRESTORE + SNAPSHOT HISTORY
+    // SIMPAN KE FIREBASE 
     // ==========================================
     simpan: function() {
-        this.syncStateFromDOM(); // Pastikan data terbaru dari form diambil
+        this.syncStateFromDOM(); // Paksa baca semua input sebelum kirim
         var d = this.data;
         d.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
 
@@ -358,34 +380,34 @@ window.AppPengaturanPembagian = {
         
         var batch = db.batch();
 
-        // 1. Update Pengaturan Global (yang dipakai transaksi harian)
+        // 1. Update Pengaturan Global
         var globalRef = db.collection('pengaturanPembagian').doc('global');
         batch.set(globalRef, d, { merge: true });
 
-        // 2. Buat Snapshot History (Kunci Data Masa Lalu)
+        // 2. Buat Snapshot History
         var historyRef = db.collection('pengaturanPembagianHistory').doc();
         var historyData = Object.assign({}, d);
         historyData.snapshotAt = firebase.firestore.FieldValue.serverTimestamp();
-        // Kita hapus array karyawan yang gede biar nggak ngefek performance (opsional, bisa dihapus kalau mau disimpen utuh)
         batch.set(historyRef, historyData);
 
         batch.commit().then(() => {
-            Utils.toast('Berhasil disimpan & riwayat dikunci!', 'success');
+            Utils.toast('Berhasil disimpan! Data transaksi akan otomatis terupdate.', 'success');
         }).catch(err => Utils.toast('Gagal: ' + err.message, 'error'));
     },
 
     collectSlotRows: function(prefix) {
         var slots = [];
         var persenInputs = document.querySelectorAll('[id^="slot-persen-' + prefix + '-"]');
-        persenInputs.forEach(input => {
+        var self = this;
+        
+        persenInputs.forEach(function(input) {
             var idx = input.id.split('-').pop();
-            var karyId = document.getElementById('slot-id-' + prefix + '-' + idx)?.value;
-            var isThrEl = document.getElementById('slot-thr-' + prefix + '-' + idx);
+            var karyId = self.getStr('slot-id-' + prefix + '-' + idx);
             if(karyId) {
                 slots.push({
                     karyawanId: karyId,
                     persen: parseFloat(input.value) || 0,
-                    isTHR: isThrEl ? isThrEl.checked : false
+                    isTHR: self.isChecked('slot-thr-' + prefix + '-' + idx)
                 });
             }
         });

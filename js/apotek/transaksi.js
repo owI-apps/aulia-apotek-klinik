@@ -1,6 +1,6 @@
 /**
- * js/apotek/transaksi.js
- * Transaksi Penjualan (Bebas, Resep Klinik, Resep Luar) + Harga Racik (Tuslah)
+ * js/apotekTransaksi.js
+ * Transaksi Penjualan (Bebas, Resep Klinik, Resep) + Harga Racik
  */
 
 window.AppApotekTransaksi = {
@@ -22,9 +22,10 @@ window.AppApotekTransaksi = {
 
     init: function() {
         var pObat = db.collection('obat').get();
-        var pConfig = db.collection('pengaturanPembagian').doc('global').get();
+        var pConfig = db.collection('pembagian').doc('global').get();
+        
         var pResep = db.collection('rekamMedis').where('status', '==', 'selesai').get();
-        var today = new Date().toISOString().split('Tangan')[0];
+        var today = new Date().toISOString().split('T')[0];
         var pAntrian = db.collection('antrian').where('tanggal', '==', today).get();
 
         Promise.all([pObat, pConfig, pResep, pAntrian]).then(function(results) {
@@ -90,38 +91,37 @@ window.AppApotekTransaksi = {
     setTipe: function(tipe) {
         this.tipe = tipe;
         this.cart = []; 
-        
-        var buttons = ['obat_bebas', 'resep_klinik', 'resep_luar'];
-        for (var i = 0; i < buttons.length; i++) {
-            var t = buttons[i];
+        var isResep = (tipe === 'resep_klinik' || tipe === 'resep_luar');
+        var cfg = this.pengaturan;
+
+        ['obat_bebas', 'resep_klinik', 'resep_luar'].forEach(function(t) {
             var btn = document.getElementById('btn-' + t);
             if (t === tipe) {
                 btn.className = btn.className.replace('border-slate-200 dark:border-slate-600', 'border-primary-500 bg-primary-50 dark:bg-primary-900/20').replace('text-slate-600 dark:text-slate-300', 'text-primary-600 dark:text-primary-400');
             } else {
                 btn.className = btn.className.replace('border-primary-500 bg-primary-50 dark:bg-primary-900/20', 'border-slate-200 dark:border-slate-600').replace('text-primary-600 dark:text-primary-400', 'text-slate-600 dark:text-slate-300');
             }
-        }
+        });
 
-        var html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+        var headerHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4>';
         
         if (tipe === 'resep_klinik') {
-            html += '<div><label class="block text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Pilih Resep Klinik</label>';
-            html += '<select id="trx-resep-id" onchange="AppApotekTransaksi.onSelectResep()" class="w-full px-3 py-2 border border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih Resep Menunggu (' + this.resepList.length + ') --</option>';
-            for (var i = 0; i < this.resepList.length; i++) {
-                var r = this.resepList[i];
-                html += '<option value="' + r.id + '">' + Utils.escapeHtml(r.namaPasien) + ' (' + Utils.escapeHtml(r.nomorRM) + ') - ' + Utils.escapeHtml(r.namaDokter) + '</option>';
-            }
-            html += '</select></div>';
+            headerHtml += '<div><label class="block text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Pilih Resep Klinik</label>';
+            headerHtml += '<select id="trx-resep-id" onchange="AppApotekTransaksi.onSelectResep()" class="w-full px-3 py-2 border border-blue-300 dark:border-blue-700 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih Resep Menunggu (' + this.resepList.length + ') --</option>';
+            this.resepList.forEach(function(r) {
+                headerHtml += '<option value="' + r.id + '">' + Utils.escapeHtml(r.namaPasien) + ' (' + Utils.escapeHtml(r.nomorRM) + ') - ' + Utils.escapeHtml(r.namaDokter) + '</option>';
+            });
+            headerHtml += '</select></div>';
         } else if (tipe === 'resep_luar') {
-            html += '<div><label class="block text-xs font-medium text-green-600 dark:text-green-400 mb-1">Dokter Pemberi Resep *</label>';
-            html += '<input type="text" id="trx-dokter-luar" class="w-full px-3 py-2 border border-green-300 dark:border-green-700 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="Nama Dokter Luar">';
-            html += '</div>';
+            headerHtml += '<div><label class="block text-xs font-medium text-green-600 dark:text-green-400 mb-1">Dokter Pemberi Resep *</label>';
+            headerHtml += '<input type="text" id="trx-dokter-luar" class="w-full px-3 py-2 border border-green-300 dark:border-green-700 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="Nama Dokter Luar">';
+            headerHtml += '</div>';
         }
         
-        html += '<div><label class="block text-xs font-medium text-slate-500 mb-1">Pasien (Opsional)</label><input type="text" id="trx-pasien" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="Nama Pasien"></div>';
-        html += '</div>';
+        headerHtml += '<div><label class="block text-xs font-medium text-slate-500 mb-1">Pasien (Opsional)</label><input type="text" id="trx-pasien" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="Nama Pasien"></div>';
+        headerHtml += '</div>';
 
-        document.getElementById('trx-header-dynamic').innerHTML = html;
+        document.getElementById('trx-header-dynamic').innerHTML = headerHtml;
         document.getElementById('trx-cart-container').innerHTML = '<p class="text-sm text-slate-400 italic p-2">Tambahkan obat ke keranjang.</p>';
         
         this.hitungTotal();
@@ -149,10 +149,10 @@ window.AppApotekTransaksi = {
         
         html += '<div class="col-span-2"><label class="block text-xs text-slate-500 mb-1">Pilih Obat</label>';
         html += '<select id="trx-obat-' + idx + '" onchange="AppApotekTransaksi.onSelectObat(' + idx + ')" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih --</option>';
-        for (var o = 0; o < this.masterObat.length; o++) {
-            var stokText = (this.masterObat[o].stok || 0) > 0 ? (this.masterObat[o].stok + ' ' + this.masterObat[o].satuan) : '<span class="text-red-500">HABIS</span>';
-            html += '<option value="' + this.masterObat[o].id + '">' + Utils.escapeHtml(this.masterObat[o].namaObat) + ' (Stok: ' + stokText + ')</option>';
-        }
+        this.masterObat.forEach(function(o) {
+            var stokText = (o.stok || 0) > 0 ? (o.stok + ' ' + o.satuan) : '<span class="text-red-500">HABIS</span>';
+            html += '<option value="' + o.id + '">' + Utils.escapeHtml(o.namaObat) + ' (Stok: ' + stokText + ')</option>';
+        });
         html += '</select></div>';
 
         html += '<div><label class="block text-xs text-slate-500 mb-1">Qty</label><input type="number" id="trx-qty-' + idx + '" value="1" min="1" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm text-center" oninput="AppApotekTransaksi.hitungTotal()"></div>';
@@ -163,8 +163,8 @@ window.AppApotekTransaksi = {
             html += '<div><label class="block text-xs text-teal-600 dark:text-teal-400 mb-1">Harga Racik (Tuslah)</label><input type="number" id="trx-racik-' + idx + '" value="0" class="w-full px-3 py-2 border border-teal-300 dark:border-teal-700 dark:bg-slate-700 dark:text-white rounded-lg text-sm text-right" oninput="AppApotekTransaksi.hitungTotal()"></div>';
         }
 
-        html += '<div class="label class="block text-xs text-slate-500 mb-1">Subtotal</label><div id="trx-sub-' + idx + '" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm text-right font-medium text-slate-600">Rp 0</div></div>';
-
+        html += '<div><label class="block text-xs text-slate-500 mb-1">Subtotal</label><div id="trx-sub-' + idx + '" class="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm text-right font-medium text-slate-600">Rp 0</div></div>';
+        
         html += '<div class="flex items-end justify-center md:justify-start"><button type="button" onclick="AppApotekTransaksi.removeItem(' + idx + ')" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button></div>';
         
         html += '</div></div>';
@@ -188,37 +188,33 @@ window.AppApotekTransaksi = {
 
                 if (isResep) {
                     if (this.tipe === 'resep_klinik') {
-                        var dokterId = document.getElementById('trx-resep-id')?.value;
+                        var dokterId = document.getElementById('trx-resep-id').value;
                         if (dokterId && cfg.resepKlinik) {
                             skemaDokter = cfg.resepKlinik.find(function(d) { return d.dokterId === dokterId; });
                         }
                     } else if (this.tipe === 'resep_luar') {
-                        skemaDokter = cfg.resepLuar; 
+                        skemaDokter = cfg.resepLuar;
                     }
-
-                    if (isResep && skemaDokter && margin > 0) {
-                        var hargaAuto = Math.ceil(obat.hpp * (1 + (margin / 100)));
-                        hargaEl.value = hargaAuto;
-                        hintEl.textContent = 'AUTO (HPP ' + Utils.formatRupiah(obat.hpp) + ' + margin + '%)';
-                        hintEl.className = 'text-[10px] text-emerald-600 mt-1 font-semibold';
-                    } else {
-                        hargaEl.value = obat.hargaJual || 0;
-                        hintEl.textContent = 'Harga Manual';
-                        hintEl.className = 'text-[10px text-slate-400 mt-1';
-                    }
-                } else {
-                    hargaEl.value = 0;
-                    hintEl.textContent = '';
                 }
-                this.hitungTotal();
+
+                if (isResep && skemaDokter && margin > 0) {
+                    var hargaAuto = Math.ceil(obat.hpp * (1 + (margin / 100)));
+                    hargaEl.value = hargaAuto;
+                    hintEl.textContent = 'AUTO (HPP ' + Utils.formatRupiah(obat.hpp) + ' + margin + '%)';
+                    hintEl.className = 'text-[10px] text-emerald-600 mt-1 font-semibold';
+                } else {
+                    hargaEl.value = obat.hargaJual || 0;
+                    hintEl.textContent = 'Harga Manual';
+                    hintEl.className = 'text-[10px text-slate-400 mt-1';
+                }
             } else {
                 hargaEl.value = 0;
                 hintEl.textContent = '';
             }
-            } else {
-                hargaEl.value = 0;
-                hintEl.textContent = '';
             }
+        } else {
+            hargaEl.value = 0;
+            hintEl.textContent = '';
         }
     },
 
@@ -234,17 +230,13 @@ window.AppApotekTransaksi = {
 
     hitungTotal: function() {
         var container = document.getElementById('trx-cart-container');
-        var rows = container.querySelectorAll('[id^="trx-row-px-5]'); // spesifiksi hanya row yang benar-benaragak atribut px-5
-
+        var rows = container.querySelectorAll('[id^="trx-row-"]');
         var totalObat = 0;
         var totalRacik = 0; 
         var cfg = this.pengaturan;
 
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i];
-            var idx = row.id.replace('trx-row-px-5', ''); // hapus '-px-5' biar dikira ada typo
-            idx = row.id.split('-').pop(); // ambil index yang benar dari "trx-row-5"
-            
+        rows.forEach(function(row) {
+            var idx = row.id.split('-').pop();
             var qty = parseInt(document.getElementById('trx-qty-' + idx).value) || 0;
             var harga = parseInt(document.getElementById('trx-harga-' + idx).value) || 0;
             var sub = qty * harga;
@@ -253,30 +245,29 @@ window.AppApotekTransaksi = {
 
             if (this.tipe === 'resep_klinik' || this.tipe === 'resep_luar') {
                 var racik = parseInt(document.getElementById('trx-racik-' + idx).value) || 0;
-                if (racik > 0) {
-                    totalRacik += (racik * qty);
-                }
+                totalRacik += (racik * qty); 
             }
-        }
+        });
 
-        // JASA RESEP (DIKALI JUMLAH RESEP YANG ADA DI BULAN INI SESUAI SKEMA
         var jasaResep = 0;
-        if (this.tipe === 'resep_klinik' && cfg.resepKlinik) {
+        if (this.tipe === 'resep_klinik' && cfg && cfg.resepKlinik) {
             var dokterId = document.getElementById('trx-resep-id').value;
             var resepCount = 0;
-            for (var j = 0; j < this.antrianList.length; j++) {
-                if (this.antrianList[j].dokterId === dokterId && this.antrianList[j].status !== 'batal') resepCount++;
+            for (var i = 0; i < this.antrianList.length; i++) {
+                if (this.antrianList[i].dokterId === dokterId && this.antrianList[i].status !== 'batal') resepCount++;
             }
             if (resepCount > 0 && dokterId && cfg.resepKlinik) {
                 var skemaDokter = cfg.resepKlinik.find(function(d) { return d.dokterId === dokterId; });
-                if (skemaDokter) jasaResep += skemaDokter.nilaiResep * resepCount;
+                if (skemaDokter) {
+                    jasaResep += skemaDokter.nilaiResep * resepCount;
+                }
             }
-        } else if (this.tipe === 'resep_luar') {
+        } else if (this.tipe === 'resep_luar' && cfg && cfg.resepLuar) {
             var dokterLuar = document.getElementById('trx-dokter-luar').value.trim();
             if (dokterLuar) {
                 var resepLuarCount = 0;
-                for (var k = 0; k < this.antrianList.length; k++) {
-                    if (this.antrianList[k].dokterLuar === dokterLuar && this.antrianList[k].status !== 'batal') resepLuarCount++;
+                for (var j = 0; j < this.antrianList.length; j++) {
+                    if (this.antrianList[j].dokterLuar === dokterLuar && this.antrianList[j].status !== 'batal') resepLuarCount++;
                 }
                 if (resepLuarCount > 0 && cfg.resepLuar) {
                     jasaResep += cfg.resepLuar.nilaiResep * resepLuarCount;
@@ -284,16 +275,15 @@ window.AppApotekTransaksi = {
             }
         }
 
-        var totalRaw = totalObat + jasaResep + (racikanItems.reduce(function(sum, r) { return sum + r.hargaRacik; }, 0));
-        
-        // PEMBULATAN KE ATAS KE BAWAH (34567 -> 35000)
+        var totalRaw = totalObat + jasaResep + (totalRacik);
+
         var totalRounded = Math.ceil(totalRaw / 1000) * 1000;
-        var pembulatanFinal = totalRounded - totalRaw;
+        var pembulatan = totalRounded - totalRaw;
 
         document.getElementById('trx-total-obat').textContent = Utils.formatRupiah(totalObat);
         document.getElementById('trx-total-racik').textContent = Utils.formatRupiah(totalRacik); 
-        document.getElementById('trx-jasa-resep').textContent = (jasaResep > 0) ? Utils.formatRapiah(jasaResep) : '-';
-        document.getElementById('trx-pembulatan').textContent = (pembulatan > 0) ? Utils.formatRapiah(pembulatan) : '-';
+        document.getElementById('trx-jasa-resep').textContent = (jasaResep > 0) ? Utils.formatRupiah(jasaResep) : '-';
+        document.getElementById('trx-pembulatan').textContent = (pembulatan > 0) ? Utils.formatRupiah(pembulatan) : '-';
         document.getElementById('trx-grand-total').textContent = Utils.formatRupiah(totalRounded);
     },
 
@@ -316,48 +306,42 @@ window.AppApotekTransaksi = {
 
         var items = [];
         var racikanItems = []; 
-        var rows = document.querySelectorAll('[id^="trx-px-5]'); 
-
-        for (var i = 0; i < rows.length; i++) {
-            var row = rows[i];
-            var idx = row.id.replace('trx-px-5', ''); 
-            idx = row.id.split('-').pop(); 
-            
+        var rows = document.querySelectorAll('[id^="trx-row-"]');
+        rows.forEach(function(row) {
+            var idx = row.id.split('-').pop();
             var obatId = document.getElementById('trx-obat-' + idx).value;
             if (obatId) {
                 var obat = this.masterObat.find(function(o) { return o.id === obatId; });
-                items.push({
-                    obatId: obatId,
-                    namaObat: obat.namaObat || '-',
-                    kodeObat: obat.kodeObat || '-',
-                    hargaJual: parseInt(document.getElementById('trx-harga-' + idx).value) || 0,
-                    hargaBeli: obat.hpp || 0,
-                    jumlah: parseInt(document.getElementById('trx-qty-' + idx).value) || 0
-                });
+                if (obat) {
+                    items.push({
+                        obatId: obatId,
+                        namaObat: obat.namaObat || '-',
+                        kodeObat: obat.kodeObat || '-',
+                        hargaJual: parseInt(document.getElementById('trx-harga-' + idx).value) || 0,
+                        hargaBeli: obat.hpp || 0,
+                        jumlah: parseInt(document.getElementById('trx-qty-' + idx).value) || 0
+                    });
 
-                if (this.tipe === 'resep_klinik' || this.tipe === 'resep_luar') {
-                    var racik = parseInt(document.getElementById('trx-racik-' + idx).value) || 0;
-                    if (racik > 0) {
-                        racikanItems.push({
-                            namaObat: obat.namaObat || '-',
-                            kodeObat: obat.kodeObat || '-',
-                            hargaRacik: racik
-                        });
+                    if (this.tipe === 'resep_klinik' || this.tipe === 'resep_luar') {
+                        var racik = parseInt(document.getElementById('trx-racik-' + idx).value) || 0;
+                        if (racik > 0) {
+                            racikanItems.push({
+                                namaObat: obat.namaObat || '-',
+                                kodeObat: obat.kodeObat || '-',
+                                hargaRacik: racik
+                            });
+                        }
                     }
                 }
             }
-        }
+        });
 
         if (items.length === 0) {
             Utils.toast('Tambahkan minimal 1 obat', 'error');
             return;
         }
 
-        var totalObatFinal = 0;
-        for (var i = 0; i < items.length; i++) {
-            totalObatFinal += (items[i].jumlah * items[i].hargaJual);
-        }
-
+        var totalObatFinal = items.reduce(function(sum, i) { return sum + (i.jumlah * i.hargaJual); }, 0);
         var cfg = this.pengaturan;
         var jasaResepFinal = 0;
         var resepIdFinal = null;
@@ -369,19 +353,22 @@ window.AppApotekTransaksi = {
             var dokterId = document.getElementById('trx-resep-id').value;
             
             var resepCount = 0;
-            for (var j = 0; j < this.antrianList.length; j++) {
-                if (this.antrianList[j].dokterId === dokterId && this.antrianList[j].status !== 'batal') resepCount++;
+            for (var i = 0; i < this.antrianList.length; i++) {
+                if (this.antrianList[i].dokterId === dokterId && this.antrianList[i].status !== 'batal') resepCount++;
             }
+            
             if (resepCount > 0 && dokterId && cfg.resepKlinik) {
                 var skemaDokter = cfg.resepKlinik.find(function(d) { return d.dokterId === dokterId; });
-                if (skemaDokter) jasaResepFinal += skemaDokter.nilaiResep * resepCount;
+                if (skemaDokter) {
+                    jasaResepFinal += skemaDokter.nilaiResep * resepCount;
+                }
             }
         } else if (this.tipe === 'resep_luar') {
             dokterLuarFinal = document.getElementById('trx-dokter-luar').value.trim();
             if (dokterLuar) {
                 var resepLuarCount = 0;
-                for (var k = 0; k < this.antrianList.length; k++) {
-                    if (this.antrianList[k].dokterLuar === dokterLuar && this.antrianList[k].status !== 'batal') resepLuarCount++;
+                for (var j = 0; j < this.antrianList.length; j++) {
+                    if (this.antrianList[j].dokterLuar === dokterLuar && this.antrianList[j].status !== 'batal') resepLuarCount++;
                 }
                 if (resepLuarCount > 0 && cfg.resepLuar) {
                     jasaResep += cfg.resepLuar.nilaiResep * resepLuarCount;
@@ -389,11 +376,10 @@ window.AppApotekTransaksi = {
             }
         }
 
-        var totalRaw = totalObatFinal + jasaResep + (racikanItems.reduce(function(sum, r) { return sum + r.hargaRacik; }, 0));
+        var totalRaw = totalObatFinal + jasaResep + (totalRacik);
         
-        // PEMBULATAN KE ATAS KE BAWAH (34567 -> 35000)
         var totalRounded = Math.ceil(totalRaw / 1000) * 1000;
-        var pembulatanFinal = totalRounded - totalRaw;
+        var pembulatan = totalRanged - totalRaw;
 
         var obj = {
             tipe: this.tipe,
@@ -407,7 +393,7 @@ window.AppApotekTransaksi = {
             items: items,
             totalObat: totalObatFinal,
             pembulatan: pembulatanFinal,
-            totalAkhir: totalRoundedFinal,
+            totalAkhir: totalRanged,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 

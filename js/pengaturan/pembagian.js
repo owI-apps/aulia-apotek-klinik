@@ -79,7 +79,7 @@ window.AppPengaturanPembagian = {
         return el ? el.checked : false;
     },
 
-        syncStateFromDOM: function() {
+            syncStateFromDOM: function() {
         var d = this.data;
         if(!d) return;
 
@@ -103,13 +103,14 @@ window.AppPengaturanPembagian = {
         d.resepKlinik = [];
         var self = this;
         for (var i = 0; i < rkBlocks.length; i++) {
-            var docId = self.getStr('pb-rk-doc-'+i);
+            // FIX TYPO: 'rk-doc-' (tanpa pb- karena id dropdown native)
+            var docId = self.getStr('rk-doc-'+i);
             var karyawan = self.karyawanList.find(function(k){ return k.id === docId; });
             
             d.resepKlinik.push({
                 dokterId: docId,
-                namaDokter: karyawan ? karyawan.nama : '', // KUNCI: Simpan nama dokter
-                nipDokter: karyawan ? karyawan.nip : '',  // KUNCI: Simpan NIP dokter
+                namaDokter: karyawan ? karyawan.nama : '', 
+                nipDokter: karyawan ? (karyawan.nip || '') : '',
                 nilaiResep: self.getVal('pb-rk-nilai-'+i),
                 jm: self.getVal('pb-rk-jm-'+i),
                 jd: self.getVal('pb-rk-jd-'+i),
@@ -120,6 +121,14 @@ window.AppPengaturanPembagian = {
             });
         }
 
+        // Ambil Slots
+        d.tindakanKlinik = this.collectSlotRows('tindakanKlinik');
+        d.tindakanApotek = this.collectSlotRows('tindakanApotek');
+        d.tunjanganOmzet.slot = this.collectSlotRows('tunjanganOmzet');
+        d.transport.slot = this.collectSlotRows('transport');
+        d.uangMakan.slot = this.collectSlotRows('uangMakan');
+        d.racikObat.slot = this.collectSlotRows('racikObat');
+    },
         // Ambil Slots
         d.tindakanKlinik = this.collectSlotRows('tindakanKlinik');
         d.tindakanApotek = this.collectSlotRows('tindakanApotek');

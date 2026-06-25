@@ -61,7 +61,7 @@ window.AppApotekTransaksi = {
         html += '<div class="grid grid-cols-3 gap-2 mb-4">';
         html += '<button onclick="AppApotekTransaksi.setTipe(\'obat_bebas\')" id="btn-obat_bebas" class="border-2 border-slate-200 dark:border-slate-600 p-3 rounded-xl text-center transition hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 border-primary-500 bg-primary-50 dark:bg-primary-900/20"><i data-lucide="pill" class="w-5 h-5 mx-auto mb-1 text-primary-600 dark:text-primary-400"></i><p class="text-sm font-semibold text-primary-600 dark:text-primary-400">Obat Bebas</p></button>';
         html += '<button onclick="AppApotekTransaksi.setTipe(\'resep_klinik\')" id="btn-resep_klinik" class="border-2 border-slate-200 dark:border-slate-600 p-3 rounded-xl text-center transition hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"><i data-lucide="file-text" class="w-5 h-5 mx-auto mb-1 text-slate-400"></i><p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Resep Klinik</p></button>';
-        html += '<button onclick="AppApotekTransaksi.setTipe(\'resep_luar\')" id="btn-resep-luar" class="border-2 border-slate-200 dark:border-slate-600 p-3 rounded-xl text-center transition hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"><i data-lucide="file-plus" class="w-5 h-5 mx-auto mb-1 text-slate-400"></i><p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Resep Luar</p></button>';
+        html += '<button onclick="AppApotekTransaksi.setTipe(\'resep_luar\')" id="btn-resep_luar" class="border-2 border-slate-200 dark:border-slate-600 p-3 rounded-xl text-center transition hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20"><i data-lucide="file-plus" class="w-5 h-5 mx-auto mb-1 text-slate-400"></i><p class="text-sm font-semibold text-slate-600 dark:text-slate-300">Resep Luar</p></button>';
         html += '</div>';
 
         html += '<div id="trx-header-dynamic" class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4"></div>';
@@ -103,7 +103,7 @@ window.AppApotekTransaksi = {
             }
         });
 
-        var headerHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4>';
+        var headerHtml = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
         
         if (tipe === 'resep_klinik') {
             headerHtml += '<div><label class="block text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Pilih Resep Klinik</label>';
@@ -379,7 +379,7 @@ window.AppApotekTransaksi = {
         var totalRaw = totalObatFinal + jasaResep + (totalRacik);
         
         var totalRounded = Math.ceil(totalRaw / 1000) * 1000;
-        var pembulatan = totalRanged - totalRaw;
+       var pembulatan = totalRounded - totalRaw;
 
         var obj = {
             tipe: this.tipe,

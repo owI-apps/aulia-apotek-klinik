@@ -1,19 +1,15 @@
 /**
  * js/klinik/pasien.js
- * Master Data Pasien
+ * Master Data Pasien + Fitur Import Excel
  */
 
 window.AppKlinikPasien = {
     data: [],
     searchQuery: '',
+    importData: [],
 
     render: function() {
         var html = '<div class="page-enter max-w-4xl">';
-        html += '<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">';
-        html += '  <div>';
-        html += '    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Data Pasien</h2>';
-        html += '    <p class="text-sm text-slate-500 dark:text-slate-400">Master data pasien klinik & apotek</p>';
-        html += '  </div>';
         html += '<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">';
         html += '  <div>';
         html += '    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Data Pasien</h2>';
@@ -26,15 +22,12 @@ window.AppKlinikPasien = {
         html += '  </div>';
         html += '</div>';
         
-        // Area Preview Import
-        html += '<div id="import-preview-area" class="hidden mb-4"></div>';
-
-        // Search Bar
         html += '<div class="mb-4 relative">';
         html += '  <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>';
         html += '  <input type="text" id="search-pasien" placeholder="Cari nama atau No. RM..." class="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none" oninput="AppKlinikPasien.onSearch(this.value)">';
         html += '</div>';
 
+        html += '<div id="import-preview-area" class="hidden mb-4"></div>';
         html += '<div id="pasien-list"><div class="flex justify-center py-10"><div class="spinner"></div></div></div>';
         html += '</div>';
         return html;
@@ -120,7 +113,6 @@ window.AppKlinikPasien = {
         html += '<div class="flex items-center justify-between mb-5"><h3 class="text-lg font-semibold text-gray-800 dark:text-white">' + (isEdit ? 'Edit' : 'Tambah') + ' Pasien</h3><button onclick="Utils.closeModal()" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button></div>';
         
         html += '<form id="form-pasien" class="space-y-4">';
-        
         html += '<div class="grid grid-cols-3 gap-4">';
         html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">No. RM</label><input type="text" id="fp-rm" value="' + Utils.escapeHtml(isEdit ? (p.nomorRM || '') : nextRM) + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" required></div>';
         html += '<div class="col-span-2"><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Nama Lengkap *</label><input type="text" id="fp-nama" value="' + Utils.escapeHtml(p.nama || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" required></div>';
@@ -198,25 +190,19 @@ window.AppKlinikPasien = {
             Utils.toast('Berhasil dihapus', 'success');
             AppKlinikPasien.init();
         }).catch(err => Utils.toast('Gagal: ' + err.message, 'error'));
-    }
+    },
 
-        // ==========================================
+    // ==========================================
     // FITUR EXCEL IMPORT
     // ==========================================
     
     downloadTemplate: function() {
-        // Membuat file Excel template kosong secara langsung di browser
         var ws_data = [
             ['No. RM', 'Nama Lengkap', 'L/P', 'Tanggal Lahir (YYYY-MM-DD)', 'No. Telepon', 'Alamat', 'Alergi Obat'],
             ['RM-2011-001', 'Contoh Nama Pasien', 'L', '1985-05-15', '081234567890', 'Jl. Contoh No. 1', 'Tidak ada'],
         ];
         var ws = XLSX.utils.aoa_to_sheet(ws_data);
-        
-        // Atur lebar kolom biar rapi saat dibuka
-        ws['!cols'] = [
-            {wch: 15}, {wch: 30}, {wch: 5}, {wch: 25}, {wch: 18}, {wch: 30}, {wch: 20}
-        ];
-
+        ws['!cols'] = [{wch: 15}, {wch: 30}, {wch: 5}, {wch: 25}, {wch: 18}, {wch: 30}, {wch: 20}];
         var wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Data Pasien");
         XLSX.writeFile(wb, "Template_Import_Pasien_Aulia.xlsx");
@@ -239,7 +225,6 @@ window.AppKlinikPasien = {
                     return;
                 }
 
-                // Simpan sementara ke state untuk di-preview
                 AppKlinikPasien.importData = jsonData.map(row => ({
                     nomorRM: String(row['No. RM'] || '').trim(),
                     nama: String(row['Nama Lengkap'] || '').trim(),
@@ -248,7 +233,7 @@ window.AppKlinikPasien = {
                     noTelepon: String(row['No. Telepon'] || '').trim(),
                     alamat: String(row['Alamat'] || '').trim(),
                     alergiObat: String(row['Alergi Obat'] || '').trim()
-                })).filter(row => row.nomorRM !== '' && row.nama !== ''); // Hanya yang isi RM dan Nama
+                })).filter(row => row.nomorRM !== '' && row.nama !== '');
 
                 AppKlinikPasien.renderImportPreview();
             } catch (err) {
@@ -257,7 +242,6 @@ window.AppKlinikPasien = {
             }
         };
         reader.readAsArrayBuffer(file);
-        // Reset input file supaya bisa upload file yang sama lagi
         event.target.value = '';
     },
 
@@ -276,7 +260,6 @@ window.AppKlinikPasien = {
         html += '<table class="w-full text-xs">';
         html += '<thead class="bg-slate-50 dark:bg-slate-900 sticky top-0"><tr><th class="px-2 py-2 text-left">No. RM</th><th class="px-2 py-2 text-left">Nama</th><th class="px-2 py-2 text-left">L/P</th><th class="px-2 py-2 text-left">Telp</th><th class="px-2 py-2 text-left">Alergi</th></tr></thead><tbody>';
         
-        // Tampilkan maksimal 50 baris pertama sebagai preview
         var previewCount = Math.min(data.length, 50);
         for (var i = 0; i < previewCount; i++) {
             var p = data[i];
@@ -290,13 +273,13 @@ window.AppKlinikPasien = {
         }
         
         if (data.length > 50) {
-            html += '<tr><td colspan="5" class="px-2 py-2 text-center text-slate-400 italic">... dan ' + (data.length - 50) + data lainnya</td></tr>';
+            html += '<tr><td colspan="5" class="px-2 py-2 text-center text-slate-400 italic">... dan ' + (data.length - 50) + ' data lainnya</td></tr>';
         }
         html += '</tbody></table></div>';
 
         html += '<div class="flex justify-end gap-2">';
         html += '<button onclick="document.getElementById(\'import-preview-area\').classList.add(\'hidden\')" class="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">Batal</button>';
-        html += '<button onclick="AppKlinikPasien.executeImport()" class="px-6 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Konfirmasi Import ke Database</button>';
+        html += '<button onclick="AppKlinikPasien.executeImport()" class="px-6 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Konfirmasi Import</button>';
         html += '</div></div>';
 
         area.innerHTML = html;
@@ -305,22 +288,16 @@ window.AppKlinikPasien = {
     },
 
     executeImport: function() {
-        if (!confirm('Import ' + this.importData.length + ' data pasien ke database? Data yang No. RM-nya sama akan ditimpa.')) return;
-
-        var btn = event.target;
-        btn.disabled = true;
-        btn.innerHTML = '<div class="spinner w-4 h-4 border-2 border-white"></div> Memproses...';
+        if (!confirm('Import ' + this.importData.length + ' data pasien ke database?')) return;
 
         var dataToImport = this.importData;
-        var batchSize = 400; // Firestore limit batch write adalah 500, kita pakai 400 aman
+        var batchSize = 400;
         var batches = [];
         
         for (var i = 0; i < dataToImport.length; i += batchSize) {
             var chunk = dataToImport.slice(i, i + batchSize);
             var batch = db.batch();
             chunk.forEach(pasien => {
-                // Cari apakah No. RM sudah ada di database (untuk update, bukan duplikat)
-                // Kita simpan berdasarkan ID No. RM supaya gak dobel
                 var docRef = db.collection('pasien').doc(pasien.nomorRM);
                 batch.set(docRef, {
                     nomorRM: pasien.nomorRM,
@@ -332,20 +309,18 @@ window.AppKlinikPasien = {
                     alergiObat: pasien.alergiObat,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }); // merge: true artinya kalau ID sudah ada, cuma diupdate, tidak error
+                }, { merge: true }); 
             });
             batches.push(batch.commit());
         }
 
+        Utils.toast('Sedang memproses...', 'info');
         Promise.all(batches).then(() => {
             Utils.toast('Berhasil mengimport ' + dataToImport.length + ' data pasien!', 'success');
             document.getElementById('import-preview-area').classList.add('hidden');
-            AppKlinikPasien.init(); // Refresh tabel utama
+            AppKlinikPasien.init();
         }).catch(err => {
             Utils.toast('Gagal mengimport: ' + err.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> Konfirmasi Import ke Database';
-            lucide.createIcons();
         });
     }
 };

@@ -82,11 +82,6 @@ window.AppApotekPembelian = {
         var wrapper = document.getElementById('beli-kredit-wrapper');
         if (metode === 'kredit') {
             wrapper.classList.remove('hidden');
-            // Set default jatuh tempo 30 hari dari sekarang
-            var today = new Date();
-            today.setDate(today.getDate() + 30);
-            var defaultTempo = today.toISOString().split('T')[0];
-            document.getElementById('beli-jatuh-tempo').value = defaultTempo;
         } else {
             wrapper.classList.add('hidden');
         }

@@ -312,14 +312,22 @@ window.AppApotekTransaksi = {
         });
 
         // Hitung Jasa Resep
+                // Hitung jasa resep
         var jasaResep = 0;
         if (this.tipe === 'resep_klinik' && cfg && Array.isArray(cfg.resepKlinik)) {
             var resepIdEl = document.getElementById('trx-resep-id');
             var selectedResepId = resepIdEl ? resepIdEl.value : '';
             if (selectedResepId) {
                 var resepData = this.resepList.find(function(r) { return r.id === selectedResepId; });
-                if (resepData && resepData.dokterId) {
+                if (resepData) {
+                    // 1. Cari berdasarkan dokterId
                     var skemaDokter = cfg.resepKlinik.find(function(d) { return d.dokterId === resepData.dokterId; });
+                    
+                    // 2. Fallback: Cari berdasarkan namaDokter jika ID tidak ketemu
+                    if (!skemaDokter && resepData.namaDokter) {
+                        skemaDokter = cfg.resepKlinik.find(function(d) { return d.namaDokter === resepData.namaDokter; });
+                    }
+                    
                     if (skemaDokter && skemaDokter.nilaiResep > 0) {
                         jasaResep = skemaDokter.nilaiResep;
                     }
@@ -401,12 +409,19 @@ window.AppApotekTransaksi = {
             var resepData = this.resepList.find(function(r) { return r.id === resepIdFinal; });
             if (resepData) {
                 dokterIdFinal = resepData.dokterId || null;
-                if (dokterIdFinal && cfg && Array.isArray(cfg.resepKlinik)) {
+                if (cfg && Array.isArray(cfg.resepKlinik)) {
+                    // 1. Cari berdasarkan dokterId
                     var skemaDokter = cfg.resepKlinik.find(function(d) { return d.dokterId === dokterIdFinal; });
+                    
+                    // 2. Fallback: Cari berdasarkan namaDokter
+                    if (!skemaDokter && resepData.namaDokter) {
+                        skemaDokter = cfg.resepKlinik.find(function(d) { return d.namaDokter === resepData.namaDokter; });
+                    }
+                    
                     if (skemaDokter) jasaResepFinal = skemaDokter.nilaiResep || 0;
                 }
             }
-        } else if (this.tipe === 'resep_luar') {
+        } else if (this.tipe === 'resep_luar') {            
             dokterLuarFinal = document.getElementById('trx-dokter-luar').value.trim();
             if (cfg && cfg.resepLuar) jasaResepFinal = cfg.resepLuar.nilaiResep || 0;
         }

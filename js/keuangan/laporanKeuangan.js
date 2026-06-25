@@ -1,9 +1,9 @@
 /**
- * js/keuangan/laporan-keuangan.js
+ * js/keuangan/laporanKeuangan.js
  * Laporan Keuangan (Laba/Rugi & Arus Kas) - Hanya PSA/Keuangan
  */
 
-window.AppKeuanganLaporan = {
+window.AppKeuanganLaporanKeuangan = {
     dataTransaksi: [],
     dataPengeluaran: [],
     dataPembelian: [],
@@ -20,7 +20,7 @@ window.AppKeuanganLaporan = {
         html += '    </div>';
         html += '    <div class="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-1">';
         html += '      <input type="month" id="filter-bulan" value="' + defaultMonth + '" class="px-3 py-1.5 bg-transparent dark:text-white text-sm rounded-md outline-none">';
-        html += '      <button onclick="AppKeuanganLaporan.init()" class="bg-primary-600 text-white text-sm px-4 py-1.5 rounded-md font-medium">Tampilkan</button>';
+        html += '      <button onclick="AppKeuanganLaporanKeuangan.init()" class="bg-primary-600 text-white text-sm px-4 py-1.5 rounded-md font-medium">Tampilkan</button>';
         html += '    </div>';
         html += '  </div>';
         

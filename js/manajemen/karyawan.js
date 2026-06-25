@@ -1,19 +1,26 @@
 /**
  * js/manajemen/karyawan.js
  * CRUD Data Karyawan (Dokter, Apoteker, Perawat, dll)
+ * FIX: Integrasi dengan Akun Login (users) & Role Access Matrix
  */
 
 window.AppManajemenKaryawan = {
     data: [],
+    usersList: [], // Untuk menyimpan daftar akun yang belum terhubung ke karyawan
 
     render: function() {
+        var role = window.currentRole || 'apotek';
+        var canEdit = (role === 'admin'); // Hanya Admin yang bisa CRUD
+
         var html = '<div class="page-enter max-w-4xl">';
         html += '<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">';
         html += '  <div>';
         html += '    <h2 class="text-xl font-bold text-gray-800 dark:text-white">Data Karyawan</h2>';
         html += '    <p class="text-sm text-slate-500 dark:text-slate-400">Master data karyawan klinik & apotek</p>';
         html += '  </div>';
-        html += '  <button onclick="AppManajemenKaryawan.openForm()" class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2 self-start"><i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Karyawan</button>';
+        if (canEdit) {
+            html += '  <button onclick="AppManajemenKaryawan.openForm()" class="bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition flex items-center gap-2 self-start"><i data-lucide="user-plus" class="w-4 h-4"></i> Tambah Karyawan</button>';
+        }
         html += '</div>';
         html += '<div id="karyawan-list"><div class="flex justify-center py-10"><div class="spinner"></div></div></div>';
         html += '</div>';
@@ -21,10 +28,18 @@ window.AppManajemenKaryawan = {
     },
 
     init: function() {
-        db.collection('karyawan').orderBy('nama').get().then(snap => {
-            AppManajemenKaryawan.data = [];
-            snap.forEach(doc => { var d = doc.data(); d.id = doc.id; AppManajemenKaryawan.data.push(d); });
-            AppManajemenKaryawan.renderList();
+        var self = this;
+        var pKaryawan = db.collection('karyawan').orderBy('nama').get();
+        var pUsers = db.collection('users').get();
+
+        Promise.all([pKaryawan, pUsers]).then(function(results) {
+            self.data = [];
+            results[0].forEach(function(doc) { var d = doc.data(); d.id = doc.id; self.data.push(d); });
+
+            self.usersList = [];
+            results[1].forEach(function(doc) { var d = doc.data(); d.id = doc.id; self.usersList.push(d); });
+
+            self.renderList();
         }).catch(err => Utils.toast('Gagal memuat: ' + err.message, 'error'));
     },
 
@@ -32,49 +47,65 @@ window.AppManajemenKaryawan = {
         var container = document.getElementById('karyawan-list');
         if (!container) return;
         
-        if (AppManajemenKaryawan.data.length === 0) {
+        var role = window.currentRole || 'apotek';
+        var canEdit = (role === 'admin');
+
+        if (this.data.length === 0) {
             container.innerHTML = '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center"><p class="text-slate-400">Belum ada data karyawan.</p></div>';
             return;
         }
 
         var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">';
+        html += '<div class="overflow-x-auto">';
         html += '<table class="w-full text-sm">';
         html += '<thead><tr class="bg-slate-50 dark:bg-slate-900 text-xs text-slate-500 uppercase tracking-wider">';
         html += '<th class="px-4 py-3 text-left">Nama</th>';
         html += '<th class="px-4 py-3 text-left">Departemen</th>';
-        html += '<th class="px-4 py-3 text-left">Jabatan</th>';
+        html += '<th class="px-4 py-3 text-left hidden md:table-cell">Jabatan</th>';
+        html += '<th class="px-4 py-3 text-left hidden lg:table-cell">Akun Login</th>';
         html += '<th class="px-4 py-3 text-center">Status</th>';
-        html += '<th class="px-4 py-3 text-right">Aksi</th>';
+        if (canEdit) html += '<th class="px-4 py-3 text-right">Aksi</th>';
         html += '</tr></thead><tbody>';
 
-        AppManajemenKaryawan.data.forEach(k => {
+        this.data.forEach(k => {
             var deptColor = k.departemen === 'Klinik' ? 'purple' : (k.departemen === 'Apotek' ? 'teal' : 'slate');
             var statusBadge = k.status === 'aktif' ? 
                 '<span class="text-xs bg-green-50 dark:bg-green-900/30 text-green-600 px-2 py-0.5 rounded-full">Aktif</span>' : 
                 '<span class="text-xs bg-red-50 dark:bg-red-900/30 text-red-500 px-2 py-0.5 rounded-full">Nonaktif</span>';
             
             var safeName = (k.nama || '-').replace(/'/g, "\\'");
+            var akunInfo = k.email ? '<span class="text-xs text-blue-600">' + Utils.escapeHtml(k.email) + '</span>' : '<span class="text-xs text-slate-400 italic">Belum ada akun</span>';
 
             html += '<tr class="border-t border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50">';
             html += '<td class="px-4 py-3 font-medium text-gray-800 dark:text-white">' + Utils.escapeHtml(k.nama) + '</td>';
             html += '<td class="px-4 py-3"><span class="text-xs bg-' + deptColor + '-50 dark:bg-' + deptColor + '-900/30 text-' + deptColor + '-600 px-2 py-0.5 rounded-full">' + Utils.escapeHtml(k.departemen || '-') + '</span></td>';
-            html += '<td class="px-4 py-3 text-slate-600 dark:text-slate-300">' + Utils.escapeHtml(k.jabatan || '-') + '</td>';
+            html += '<td class="px-4 py-3 text-slate-600 dark:text-slate-300 hidden md:table-cell">' + Utils.escapeHtml(k.jabatan || '-') + '</td>';
+            html += '<td class="px-4 py-3 hidden lg:table-cell">' + akunInfo + '</td>';
             html += '<td class="px-4 py-3 text-center">' + statusBadge + '</td>';
-            html += '<td class="px-4 py-3 text-right space-x-1">';
-            html += '<button onclick="AppManajemenKaryawan.openForm(\'' + k.id + '\')" class="p-1.5 text-slate-400 hover:text-primary-600 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>';
-            html += '<button onclick="AppManajemenKaryawan.hapus(\'' + k.id + '\', \'' + safeName + '\')" class="p-1.5 text-slate-400 hover:text-red-600 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
-            html += '</td></tr>';
+            
+            if (canEdit) {
+                html += '<td class="px-4 py-3 text-right space-x-1">';
+                html += '<button onclick="AppManajemenKaryawan.openForm(\'' + k.id + '\')" class="p-1.5 text-slate-400 hover:text-primary-600 rounded"><i data-lucide="pencil" class="w-4 h-4"></i></button>';
+                html += '<button onclick="AppManajemenKaryawan.hapus(\'' + k.id + '\', \'' + safeName + '\')" class="p-1.5 text-slate-400 hover:text-red-600 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>';
+                html += '</td>';
+            }
+            html += '</tr>';
         });
 
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
         lucide.createIcons();
     },
 
     openForm: function(id) {
         var isEdit = !!id;
-        var k = isEdit ? AppManajemenKaryawan.data.find(x => x.id === id) : {};
+        var k = isEdit ? this.data.find(x => x.id === id) : {};
         
+        // Cari akun user yang BELUM punya karyawanId, ditambah akun user dari karyawan ini (jika edit)
+        var availableUsers = this.usersList.filter(function(u) {
+            return !u.karyawanId || u.karyawanId === id;
+        });
+
         var html = '<div class="p-6">';
         html += '<div class="flex items-center justify-between mb-5"><h3 class="text-lg font-semibold text-gray-800 dark:text-white">' + (isEdit ? 'Edit' : 'Tambah') + ' Karyawan</h3><button onclick="Utils.closeModal()" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"><i data-lucide="x" class="w-5 h-5 text-slate-400"></i></button></div>';
         html += '<form id="form-karyawan" class="space-y-4">';
@@ -84,6 +115,14 @@ window.AppManajemenKaryawan = {
         html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Departemen *</label><select id="fk-dept" required class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih --</option><option value="Klinik"' + (k.departemen==='Klinik'?' selected':'') + '>Klinik</option><option value="Apotek"' + (k.departemen==='Apotek'?' selected':'') + '>Apotek</option><option value="Umum"' + (k.departemen==='Umum'?' selected':'') + '>Umum</option></select></div>';
         html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Jabatan</label><input type="text" id="fk-jabatan" value="' + Utils.escapeHtml(k.jabatan || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm" placeholder="Dokter, Apoteker, Kasir..."></div>';
         html += '</div>';
+
+        // TAMBAHAN: Link ke Akun Login
+        html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Akun Login (Opsional)</label><select id="fk-userid" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Tidak Pakai Akun --</option>';
+        availableUsers.forEach(u => {
+            var sel = (u.id === k.userId) ? ' selected' : '';
+            html += '<option value="' + u.id + '" data-email="' + Utils.escapeHtml(u.email) + '"' + sel + '>' + Utils.escapeHtml(u.email) + ' (' + Utils.escapeHtml(u.role) + ')</option>';
+        });
+        html += '</select><p class="text-xs text-slate-400 mt-1">Hubungkan karyawan dengan akun login mereka agar bisa Check-In mandiri.</p></div>';
 
         html += '<div class="grid grid-cols-2 gap-4">';
         html += '<div><label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">NIP / ID</label><input type="text" id="fk-nip" value="' + Utils.escapeHtml(k.nip || '') + '" class="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-sm"></div>';
@@ -100,7 +139,6 @@ window.AppManajemenKaryawan = {
 
         Utils.openModal(html);
         
-        // Event listener untuk form submit
         setTimeout(() => {
             document.getElementById('form-karyawan').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -113,12 +151,18 @@ window.AppManajemenKaryawan = {
         var idField = document.getElementById('fk-id');
         var isEdit = !!idField;
         
+        var userSelect = document.getElementById('fk-userid');
+        var userId = userSelect.value;
+        var email = userSelect.value ? userSelect.options[userSelect.selectedIndex].getAttribute('data-email') : '';
+
         var obj = {
             nama: document.getElementById('fk-nama').value.trim(),
             departemen: document.getElementById('fk-dept').value,
             jabatan: document.getElementById('fk-jabatan').value.trim(),
             nip: document.getElementById('fk-nip').value.trim(),
             status: document.getElementById('fk-status').value,
+            userId: userId || null,
+            email: email || null,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         };
 
@@ -127,6 +171,7 @@ window.AppManajemenKaryawan = {
             return;
         }
 
+        Utils.toast('Menyimpan...', 'info');
         var p;
         if (isEdit) {
             p = db.collection('karyawan').doc(idField.value).update(obj);
@@ -136,6 +181,11 @@ window.AppManajemenKaryawan = {
         }
 
         p.then(() => {
+            // Update juga collection users agar terhubung balik
+            if (userId) {
+                var userRef = db.collection('users').doc(userId);
+                userRef.update({ karyawanId: isEdit ? idField.value : null, nama: obj.nama });
+            }
             Utils.toast('Karyawan berhasil disimpan!', 'success');
             Utils.closeModal();
             AppManajemenKaryawan.init(); 

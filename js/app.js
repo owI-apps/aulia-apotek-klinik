@@ -89,7 +89,7 @@ const menuStructure = {
         { id: 'transaksi', label: 'Transaksi', icon: 'shopping-cart', module: 'apotek/transaksi' },
         { id: 'obat', label: 'Obat & Stock', icon: 'pill', module: 'apotek/obat' },
         { id: 'pembelian', label: 'Pembelian', icon: 'truck', module: 'apotek/pembelian' },
-        { id: 'stock-opname', label: 'Stock Opname', icon: 'clipboard-check', module: 'apotek/stock-opname' }
+        { id: 'stockOpname', label: 'Stock Opname', icon: 'clipboard-check', module: 'apotek/stockOpname' }
     ],
     laporan: [
         { id: 'hutang', label: 'Hutang Usaha', icon: 'file-text', module: 'laporan/hutang' },

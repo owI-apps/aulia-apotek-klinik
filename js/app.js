@@ -245,19 +245,45 @@ function toggleMobileSidebar() {
 }
 
 // ==========================================
-// AUTH LISTENER (Simulasi sementara)
+// AUTH STATE LISTENER (PERMISSION GATE)
 // ==========================================
-function startApp(role = 'keuangan', name = 'Akun PSA') {
-    document.getElementById('user-name').textContent = name;
-    document.getElementById('user-role').textContent = role.charAt(0).toUpperCase() + role.slice(1);
-    document.getElementById('user-avatar').textContent = name.charAt(0);
+function startApp(userRole, userName) {
+    window.currentRole = userRole;
+    window.currentUserName = userName;
     
-    renderSidebar(role);
-    navigateTo('pengaturan/pembagian', 'Pembagian Hasil'); 
+    document.getElementById('user-name').textContent = userName;
+    document.getElementById('user-role').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+    document.getElementById('user-avatar').textContent = userName.charAt(0);
+    
+    renderSidebar(userRole);
+    // Default landing page setelah login
+    navigateTo('apotek/transaksi', 'Transaksi Penjualan'); 
 }
 
-// Jalankan Aplikasi
-startApp('keuangan', 'Keuangan PSA');
+// Cek apakah ada user yang sedang login
+firebase.auth().onAuthStateChanged(function(user) {
+    if (user) {
+        // User sudah login, cek datanya di Firestore
+        db.collection('users').doc(user.uid).get().then(function(doc) {
+            if (doc.exists) {
+                var userData = doc.data();
+                if (userData.status === 'nonaktif') {
+                    Utils.toast('Akun Anda dinonaktifkan. Hubungi Admin.', 'error');
+                    firebase.auth().signOut();
+                    return;
+                }
+                // Panggil startApp dengan data asli dari database
+                startApp(userData.role, userData.nama);
+            } else {
+                // Kalau auth ada, tapi data firestore gak ada (jarang terjadi), logout paksa
+                firebase.auth().signOut();
+            }
+        });
+    } else {
+        // User belum login, tampilkan halaman Login
+        window.AppAuth.renderLogin();
+    }
+});
 
 // Register Service Worker untuk PWA (Aman jika file sw.js belum ada)
 if ('serviceWorker' in navigator) {

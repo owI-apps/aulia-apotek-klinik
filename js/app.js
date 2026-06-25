@@ -256,14 +256,17 @@ function startApp(userRole, userName) {
     document.getElementById('user-avatar').textContent = userName.charAt(0);
     
     renderSidebar(userRole);
-    // Default landing page setelah login
     navigateTo('apotek/transaksi', 'Transaksi Penjualan'); 
 }
 
 // Cek apakah ada user yang sedang login
 firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
-        // User sudah login, cek datanya di Firestore
+        // 1. HANCURKAN OVERLAY LOGIN JIKA ADA
+        var overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.remove();
+
+        // 2. Cek data user di Firestore
         db.collection('users').doc(user.uid).get().then(function(doc) {
             if (doc.exists) {
                 var userData = doc.data();
@@ -275,7 +278,7 @@ firebase.auth().onAuthStateChanged(function(user) {
                 // Panggil startApp dengan data asli dari database
                 startApp(userData.role, userData.nama);
             } else {
-                // Kalau auth ada, tapi data firestore gak ada (jarang terjadi), logout paksa
+                // Kalau auth ada, tapi data firestore gak ada, logout paksa
                 firebase.auth().signOut();
             }
         });

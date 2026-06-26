@@ -75,7 +75,7 @@ window.AppKeuanganPayroll = {
         });
     },
 
-    hitungPayroll: function() {
+        hitungPayroll: function() {
         var self = this;
         this.kalkulasiGaji = [];
 
@@ -123,8 +123,9 @@ window.AppKeuanganPayroll = {
             var slotsTindakan = self.configPembagian[depTindakanKey] || [];
             var mySlot = slotsTindakan.find(function(s) { return s.karyawanId === k.id; });
             if (mySlot && mySlot.persen > 0) {
-                var totalTuslahDep = (depKey === 'klinik') ? totalTuslahKlinik : totalTusalahApotek;
-                bagianTindakan = (totalTusalahDep * mySlot.persen) / 100;
+                // FIX TYPO: totalTusalahApotek -> totalTuslahApotek
+                var totalTuslahDep = (depKey === 'klinik') ? totalTuslahKlinik : totalTuslahApotek;
+                bagianTindakan = (totalTuslahDep * mySlot.persen) / 100;
             }
 
             var totalGaji = gajiPokok + jasaResep + bagianTindakan;
@@ -146,7 +147,6 @@ window.AppKeuanganPayroll = {
 
         self.renderTable();
     },
-
     renderTable: function() {
         var container = document.getElementById('payroll-content');
         var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">';

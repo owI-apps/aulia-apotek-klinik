@@ -442,11 +442,12 @@ window.AppApotekTransaksi = {
         document.getElementById('trx-grand-total').textContent = Utils.formatRupiah(totalRounded);
     },
 
-    // ========== SIMPAN & CETAK ==========
+       // ========== SIMPAN & CETAK ==========
     simpan: function() {
         var self = this;
 
-        if (this.tipe === 'resep_luar' && !document.getElementById('trx-dokter-luar').value.trim()) {
+        // FIX 1: Ganti ID dari 'trx-dokter-luar' menjadi 'trx-dokter-luar-id'
+        if (this.tipe === 'resep_luar' && !document.getElementById('trx-dokter-luar-id').value.trim()) {
             Utils.toast('Nama dokter pemberi resep wajib diisi', 'error'); return;
         }
         if (this.tipe === 'resep_klinik' && !document.getElementById('trx-resep-id').value) {
@@ -529,7 +530,6 @@ window.AppApotekTransaksi = {
                 }
             }
         } else if (this.tipe === 'resep_luar') {
-            // UBAH: Ambil ID & Nama Dokter dari Dropdown
             var dokterLuarSelect = document.getElementById('trx-dokter-luar-id');
             dokterIdFinal = dokterLuarSelect.value || null;
             dokterLuarFinal = dokterLuarSelect.options[dokterLuarSelect.selectedIndex].getAttribute('data-nama');
@@ -550,7 +550,7 @@ window.AppApotekTransaksi = {
             resepId: resepIdFinal,
             items: items,
             racikanItems: racikanItems,
-            tindakanItems: tindakanItemsFinal, // Simpan tindakan
+            tindakanItems: tindakanItemsFinal,
             totalObat: totalObat,
             totalRacik: totalRacik,
             totalTindakan: totalTindakan,
@@ -560,6 +560,9 @@ window.AppApotekTransaksi = {
             metodeBayar: metodeBayar,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
+
+        // FIX 2: Buka jendela print duluan biar gak kena blokir Popup Blocker browser
+        var printWindow = window.open('', '', 'width=400,height=600');
 
         Utils.toast('Memproses transaksi...', 'info');
 
@@ -580,16 +583,19 @@ window.AppApotekTransaksi = {
 
         }).then(function() {
             Utils.toast('Transaksi berhasil! Stok obat dikurangi.', 'success');
-            self.cetakStruk(obj); 
+            self.cetakStruk(obj, printWindow); // KIRIM WINDOW YANG SUDAH DIBUKA KE FUNGSI CETAK
             AppApotekTransaksi.init(); 
         }).catch(function(err) {
             Utils.toast('Gagal menyimpan: ' + err.message, 'error');
+            if(printWindow) printWindow.close(); // Tutup window kalau transaksinya gagal
         });
     },
 
     // ========== CETAK STRUK ==========
-    cetakStruk: function(data) {
-        var w = window.open('', '', 'width=400,height=600');
+    cetakStruk: function(data, w) {
+        // var w = window.open('', '', 'width=400,height=600'); -> Hapus ini, soalnya udah dibuka di fungsi simpan
+        if(!w) return; // Safety check
+        
         var tgl = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
         
         var html = '<html><head><title>Struk Transaksi</title>';
@@ -624,7 +630,6 @@ window.AppApotekTransaksi = {
         });
         html += '</table><hr>';
         
-        // Rincian Tindakan
         if (data.tindakanItems && data.tindakanItems.length > 0) {
             html += '<table>';
             data.tindakanItems.forEach(function(t) {
@@ -651,4 +656,3 @@ window.AppApotekTransaksi = {
         w.document.write(html);
         w.document.close();
     }
-};

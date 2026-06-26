@@ -39,7 +39,6 @@ window.Utils = {
         var el = document.getElementById(containerId);
         if(el) el.innerHTML = '<div class="flex justify-center py-10"><div class="spinner"></div></div>';
     },
-    // FUNGSI BARU UNTUK MODAL/POPUP
     openModal: (htmlContent) => {
         var existing = document.getElementById('global-modal');
         if(existing) existing.remove();
@@ -79,13 +78,9 @@ function toggleTheme() {
 // ROUTING & SIDEBAR MENU
 // ==========================================
 const menuStructure = {
-    const menuStructure = {
-    // TAMBAHKAN BLOK INI DI PALING ATAS
     utama: [
         { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', module: 'dashboard' }
     ],
-    klinik: [
-        { id: 'antrian', label: 'Antrian', icon: 'list-ordered', module: 'klinik/antrian' },
     klinik: [
         { id: 'antrian', label: 'Antrian', icon: 'list-ordered', module: 'klinik/antrian' },
         { id: 'rekam-medis', label: 'Rekam Medis', icon: 'file-heart', module: 'klinik/rekamMedis' },
@@ -188,18 +183,17 @@ function loadScript(url) {
             resolve();
         };
         script.onerror = () => {
-            // Ini akan nge-print URL EXACT yang gagal, biar kita tau masalahnya dimana
             console.error('FILE TIDAK DITEMUKAN DI: ' + window.location.origin + '/' + url);
             reject(new Error('File tidak ditemukan di: ' + url));
         };
         document.head.appendChild(script);
     });
 }
+
 window.navigateTo = async function(modulePath, title) {
     document.getElementById('page-title').textContent = title;
     document.getElementById('app-content').innerHTML = '<div class="flex justify-center py-20"><div class="spinner"></div></div>';
     
-    // Highlight active menu
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('bg-primary-50', 'dark:bg-slate-700', 'text-primary-600', 'dark:text-primary-400', 'font-semibold');
     });
@@ -209,13 +203,9 @@ window.navigateTo = async function(modulePath, title) {
     if(window.innerWidth < 1024) toggleMobileSidebar();
 
     try {
-        // Load script secara dinamis (Cocok untuk GitHub Pages tanpa Webpack/Vite)
         const scriptUrl = `js/${modulePath}.js`;
         await loadScript(scriptUrl);
         
-        // Konversi path jadi nama Object Window
-        // Contoh: 'pengaturan/pembagian' -> 'AppPengaturanPembagian'
-        // Contoh: 'dashboard' -> 'AppDashboard'
         const moduleName = 'App' + modulePath.split('/').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
         
         const Module = window[moduleName];
@@ -264,18 +254,14 @@ function startApp(userRole, userName) {
     document.getElementById('user-avatar').textContent = userName.charAt(0);
     
     renderSidebar(userRole);
-    // Default landing page setelah login
     navigateTo('dashboard', 'Dashboard');  
 }
 
-// Cek apakah ada user yang sedang login
 firebase.auth().onAuthStateChanged(function(user) {
     if (user) {
-        // 1. HANCURKAN OVERLAY LOGIN JIKA ADA
         var overlay = document.getElementById('login-overlay');
         if (overlay) overlay.remove();
 
-        // 2. Cek data user di Firestore
         db.collection('users').doc(user.uid).get().then(function(doc) {
             if (doc.exists) {
                 var userData = doc.data();
@@ -284,24 +270,18 @@ firebase.auth().onAuthStateChanged(function(user) {
                     firebase.auth().signOut();
                     return;
                 }
-                // Panggil startApp dengan data asli dari database
                 startApp(userData.role, userData.nama);
             } else {
-                // Kalau auth ada, tapi data firestore gak ada, logout paksa
                 firebase.auth().signOut();
             }
         });
     } else {
-        // User belum login, tampilkan halaman Login
         window.AppAuth.renderLogin();
     }
 });
 
-// Register Service Worker untuk PWA (Aman jika file sw.js belum ada)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-            // Biarkan silent jika gagal, supaya tidak ngebug aplikasi utama
-        });
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
     });
 }

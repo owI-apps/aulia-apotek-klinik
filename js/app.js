@@ -256,7 +256,8 @@ function startApp(userRole, userName) {
     document.getElementById('user-avatar').textContent = userName.charAt(0);
     
     renderSidebar(userRole);
-    navigateTo('apotek/transaksi', 'Transaksi Penjualan'); 
+    // Default landing page setelah login
+    navigateTo('dashboard', 'Dashboard');  
 }
 
 // Cek apakah ada user yang sedang login

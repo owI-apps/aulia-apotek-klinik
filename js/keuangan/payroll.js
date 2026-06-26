@@ -74,14 +74,14 @@ window.AppKeuanganPayroll = {
         });
     },
 
-    hitungPayroll: function() {
+        hitungPayroll: function() {
         var self = this;
         this.kalkulasiGaji = [];
 
         // 1. KALKULASI GLOBAL BULAN INI
         var rekapDokter = {}; 
-        var totalLabaObat = 0; // Untuk Tunjangan Omzet
-        var totalPembulatan = 0; // Untuk Uang Makan
+        var totalLabaObat = 0; 
+        var totalPembulatan = 0; 
         var totalTuslahKlinik = 0;
         var totalTuslahApotek = 0;
         var totalNilaiRacik = 0; 
@@ -101,17 +101,21 @@ window.AppKeuanganPayroll = {
                 totalNilaiRacik += (t.racikanItems.length * nilaiRacikConfig);
             }
 
-            // Rekap Jasa Resep Dokter
+            // Rekap Jasa Resep Dokter (Klinik & Luar)
             if (t.tipe === 'resep_klinik' && t.dokterId) {
-                if (!rekapDokter[t.dokterId]) rekapDokter[t.dokterId] = { jumlahResep: 0 };
-                rekapDokter[t.dokterId].jumlahResep += 1;
+                if (!rekapDokter[t.dokterId]) rekapDokter[t.dokterId] = { jmlResepKlinik: 0, jasaResepLuar: 0 };
+                rekapDokter[t.dokterId].jmlResepKlinik += 1;
+            } else if (t.tipe === 'resep_luar' && t.dokterId) {
+                if (!rekapDokter[t.dokterId]) rekapDokter[t.dokterId] = { jmlResepKlinik: 0, jasaResepLuar: 0 };
+                rekapDokter[t.dokterId].jasaResepLuar += (t.jasaResep || 0);
             }
 
-            // Hitung Tuslah
+            // Hitung Tuslah (FIX: Dari Laba / Harga Jual - Modal)
             if (t.tindakanItems && t.tindakanItems.length > 0) {
                 t.tindakanItems.forEach(function(tin) {
-                    if (tin.kategori === 'klinik') totalTuslahKlinik += (tin.hargaJual - (tin.modal || 0));
-                    else if (tin.kategori === 'apotek') totalTuslahApotek += (tin.hargaJual - (tin.modal || 0));
+                    var labaTindakan = (tin.hargaJual || 0) - (tin.modal || 0);
+                    if (tin.kategori === 'klinik') totalTuslahKlinik += labaTindakan;
+                    else if (tin.kategori === 'apotek') totalTuslahApotek += labaTindakan;
                 });
             }
         });
@@ -129,13 +133,15 @@ window.AppKeuanganPayroll = {
             // Hari Kerja
             var hadir = self.dataAbsensi.filter(function(a) { return a.userId === k.userId || a.namaKaryawan === k.nama; }).length;
 
-            // Jasa Medis (JM) & Jasa Dokter (JD) - Hanya untuk Dokter
-            var jasaMedis = 0, jasaDokter = 0;
+            // Jasa Medis (JM) & Jasa Dokter (JD) - Hanya untuk Dokter Klinik
+            var jasaMedis = 0, jasaDokter = 0, jasaResepLuar = 0;
             if (rekapDokter[k.id]) {
+                jasaResepLuar = rekapDokter[k.id].jasaResepLuar; // Dapat utuh dari resep luar
+                
                 var docConfig = cfg.resepKlinik.find(function(dc) { return dc.dokterId === k.id; });
-                if (docConfig) {
-                    jasaMedis = (docConfig.jm || 0) * rekapDokter[k.id].jumlahResep;
-                    jasaDokter = (docConfig.jd || 0) * rekapDokter[k.id].jumlahResep;
+                if (docConfig && rekapDokter[k.id].jmlResepKlinik > 0) {
+                    jasaMedis = (docConfig.jm || 0) * rekapDokter[k.id].jmlResepKlinik;
+                    jasaDokter = (docConfig.jd || 0) * rekapDokter[k.id].jmlResepKlinik;
                 }
             }
 
@@ -144,19 +150,17 @@ window.AppKeuanganPayroll = {
             if (cfg.resepKlinik) {
                 cfg.resepKlinik.forEach(function(dc) {
                     var rekap = rekapDokter[dc.dokterId];
-                    if (rekap && rekap.jumlahResep > 0) {
-                        // Pool Klinik
+                    if (rekap && rekap.jmlResepKlinik > 0) {
                         var slotKlinik = dc.slotKaryKlinik.find(function(s) { return s.karyawanId === k.id; });
-                        if (slotKlinik) bagPoolKlinik += ((dc.poolKaryKlinik || 0) * rekap.jumlahResep) * (slotKlinik.persen / 100);
+                        if (slotKlinik) bagPoolKlinik += ((dc.poolKaryKlinik || 0) * rekap.jmlResepKlinik) * (slotKlinik.persen / 100);
                         
-                        // Pool Apotek
                         var slotApotek = dc.slotKaryApotek.find(function(s) { return s.karyawanId === k.id; });
-                        if (slotApotek) bagPoolApotek += ((dc.poolKaryApotek || 0) * rekap.jumlahResep) * (slotApotek.persen / 100);
+                        if (slotApotek) bagPoolApotek += ((dc.poolKaryApotek || 0) * rekap.jmlResepKlinik) * (slotApotek.persen / 100);
                     }
                 });
             }
 
-            // Bagian Tuslah/Tindakan
+            // Bagian Tuslah/Tindakan (FIX: Sudah menggunakan Laba Tindakan)
             var bagTuslah = 0;
             var depTindakanKey = (depKey === 'klinik') ? 'tindakanKlinik' : 'tindakanApotek';
             var slotsTindakan = cfg[depTindakanKey] || [];
@@ -195,11 +199,12 @@ window.AppKeuanganPayroll = {
                 if (mySlotRacik) bagRacik = (totalNilaiRacik * mySlotRacik.persen) / 100;
             }
 
-            var totalPendapatan = gajiPokok + jasaMedis + jasaDokter + bagPoolKlinik + bagPoolApotek + bagTuslah + bagOmzet + bagUM + bagTransport + bagRacik;
+            var totalPendapatan = gajiPokok + jasaMedis + jasaDokter + jasaResepLuar + bagPoolKlinik + bagPoolApotek + bagTuslah + bagOmzet + bagUM + bagTransport + bagRacik;
 
             self.kalkulasiGaji.push({
                 karyawanId: k.id, nama: k.nama, departemen: k.departemen, jabatan: k.jabatan,
-                hariKerja: hadir, gajiPokok: gajiPokok, jasaMedis: jasaMedis, jasaDokter: jasaDokter,
+                hariKerja: hadir, gajiPokok: gajiPokok, 
+                jasaMedis: jasaMedis, jasaDokter: jasaDokter, jasaResepLuar: jasaResepLuar,
                 bagPoolKlinik: bagPoolKlinik, bagPoolApotek: bagPoolApotek, bagTuslah: bagTuslah,
                 bagOmzet: bagOmzet, bagUM: bagUM, bagTransport: bagTransport, bagRacik: bagRacik,
                 tunjanganLain: 0, potKasbon: 0, potWisata: 0,
@@ -209,7 +214,7 @@ window.AppKeuanganPayroll = {
 
         self.renderTable();
     },
-
+    
     renderTable: function() {
         var container = document.getElementById('payroll-content');
         var html = '<div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">';

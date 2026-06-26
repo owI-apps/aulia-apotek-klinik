@@ -3,7 +3,7 @@
  * Transaksi Penjualan: Obat Bebas | Resep Klinik | Resep Luar
  * - Integrasi Tindakan Apotek & Klinik
  * - Jasa resep & Harga obat auto dari pengaturan
- * - Cetak Struk
+ * - Cetak Struk Anti-Popup Blocker
  */
 
 window.AppApotekTransaksi = {
@@ -11,7 +11,7 @@ window.AppApotekTransaksi = {
     // ========== STATE ==========
     tipe: 'obat_bebas',
     masterObat: [],
-    masterTindakan: [], // TAMBAHAN: Untuk tindakan apotek
+    masterTindakan: [], 
     pengaturan: null,
     resepList: [],
     antrianList: [],
@@ -39,7 +39,7 @@ window.AppApotekTransaksi = {
             db.collection('pengaturanPembagian').doc('global').get(),
             db.collection('rekamMedis').where('status', '==', 'selesai').get(),
             db.collection('antrian').where('tanggal', '==', today).get(),
-            db.collection('masterTindakan').where('aktif', '==', true).get() // Fetch Master Tindakan
+            db.collection('masterTindakan').where('aktif', '==', true).get()
         ]).then(function(results) {
 
             // Master Obat
@@ -103,7 +103,7 @@ window.AppApotekTransaksi = {
         html += '  <div id="trx-cart-container" class="space-y-2"><p class="text-sm text-slate-400 italic p-2">Tambahkan obat ke keranjang.</p></div>';
         html += '</div>';
 
-        // Area Tindakan & Jasa Medis (BARU)
+        // Area Tindakan & Jasa Medis
         html += '<div id="trx-tindakan-container" class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 mb-4"></div>';
 
         // Ringkasan total & Pembayaran
@@ -141,7 +141,7 @@ window.AppApotekTransaksi = {
 
         this.tipe = 'obat_bebas';
         this._renderHeader('obat_bebas');
-        this.renderTindakanArea(); // Render area tindakan default
+        this.renderTindakanArea(); 
     },
 
     _btnTipe: function(tipe, icon, label, isActive) {
@@ -175,7 +175,7 @@ window.AppApotekTransaksi = {
         this.hitungTotal();
     },
 
-        _renderHeader: function(tipe) {
+    _renderHeader: function(tipe) {
         var html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
         if (tipe === 'resep_klinik') {
             html += '<div><label class="block text-xs font-medium text-blue-600 mb-1">Pilih Resep Klinik</label>';
@@ -187,7 +187,6 @@ window.AppApotekTransaksi = {
             html += '</select></div>';
         } else if (tipe === 'resep_luar') {
             html += '<div><label class="block text-xs font-medium text-green-600 mb-1">Dokter Pemberi Resep *</label>';
-            // UBAH: Jadi dropdown biar bisa nyangkut ID Dokter Klinik
             html += '<select id="trx-dokter-luar-id" onchange="AppApotekTransaksi.hitungTotal()" class="w-full px-3 py-2 border border-green-300 dark:border-green-700 bg-white dark:bg-slate-700 dark:text-white rounded-lg text-sm"><option value="">-- Pilih Dokter --</option>';
             if (this.pengaturan && Array.isArray(this.pengaturan.resepKlinik)) {
                 this.pengaturan.resepKlinik.forEach(function(doc) {
@@ -202,7 +201,7 @@ window.AppApotekTransaksi = {
         document.getElementById('trx-header-dynamic').innerHTML = html;
     },
 
-    // ========== AREA TINDAKAN (BARU) ==========
+    // ========== AREA TINDAKAN ==========
     renderTindakanArea: function() {
         var container = document.getElementById('trx-tindakan-container');
         if (!container) return;
@@ -210,7 +209,6 @@ window.AppApotekTransaksi = {
         var html = '<div class="flex justify-between items-center mb-3">';
         html += '<h3 class="font-semibold text-gray-800 dark:text-white">Tindakan & Jasa Medis</h3>';
         
-        // Hanya munculkan tombol tambah manual kalo bukan resep klinik (karena klinik otomatis dari dokter)
         if (this.tipe !== 'resep_klinik') {
             html += '<button type="button" onclick="AppApotekTransaksi.addTindakanApotek()" class="text-sm bg-teal-50 dark:bg-teal-900/30 text-teal-600 px-3 py-1.5 rounded-lg font-medium hover:bg-teal-100">+ Tindakan Apotek</button>';
         } else {
@@ -222,7 +220,6 @@ window.AppApotekTransaksi = {
         container.innerHTML = html;
     },
 
-    // Untuk Tindakan Apotek Manual
     addTindakanApotek: function() {
         var container = document.getElementById('trx-tindakan-list');
         if (container.querySelector('p.italic')) container.innerHTML = '';
@@ -262,7 +259,6 @@ window.AppApotekTransaksi = {
         this.hitungTotal();
     },
 
-    // Saat Resep Klinik dipilih, tarik tindakan dari Rekam Medis
     onSelectResep: function() {
         var id = document.getElementById('trx-resep-id').value;
         var listContainer = document.getElementById('trx-tindakan-list');
@@ -274,7 +270,6 @@ window.AppApotekTransaksi = {
         if (resep) {
             document.getElementById('trx-pasien').value = resep.namaPasien || '';
             
-            // Render Tindakan Klinik dari Rekam Medis
             if (resep.tindakanItems && resep.tindakanItems.length > 0) {
                 var html = '';
                 resep.tindakanItems.forEach(function(t, i) {
@@ -409,7 +404,7 @@ window.AppApotekTransaksi = {
             totalTindakan += parseFloat(input.value) || 0;
         });
 
-                // Hitung jasa resep
+        // Hitung jasa resep
         var jasaResep = 0;
         if (this.tipe === 'resep_klinik' && cfg && Array.isArray(cfg.resepKlinik)) {
             var resepIdEl = document.getElementById('trx-resep-id');
@@ -425,7 +420,6 @@ window.AppApotekTransaksi = {
                 }
             }
         } else if (this.tipe === 'resep_luar' && cfg && cfg.resepLuar) {
-            // UBAH: Cek dropdown dokter luar
             var dokterLuarEl = document.getElementById('trx-dokter-luar-id');
             if (dokterLuarEl && dokterLuarEl.value && cfg.resepLuar.nilaiResep > 0) jasaResep = cfg.resepLuar.nilaiResep;
         }
@@ -442,11 +436,10 @@ window.AppApotekTransaksi = {
         document.getElementById('trx-grand-total').textContent = Utils.formatRupiah(totalRounded);
     },
 
-       // ========== SIMPAN & CETAK ==========
+    // ========== SIMPAN & CETAK ==========
     simpan: function() {
         var self = this;
 
-        // FIX 1: Ganti ID dari 'trx-dokter-luar' menjadi 'trx-dokter-luar-id'
         if (this.tipe === 'resep_luar' && !document.getElementById('trx-dokter-luar-id').value.trim()) {
             Utils.toast('Nama dokter pemberi resep wajib diisi', 'error'); return;
         }
@@ -593,8 +586,10 @@ window.AppApotekTransaksi = {
 
     // ========== CETAK STRUK ==========
     cetakStruk: function(data, w) {
-        // var w = window.open('', '', 'width=400,height=600'); -> Hapus ini, soalnya udah dibuka di fungsi simpan
-        if(!w) return; // Safety check
+        if(!w) {
+            Utils.toast('Popup struk diblokir browser. Izinkan pop-up untuk situs ini.', 'error');
+            return;
+        }
         
         var tgl = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
         
@@ -656,3 +651,4 @@ window.AppApotekTransaksi = {
         w.document.write(html);
         w.document.close();
     }
+};

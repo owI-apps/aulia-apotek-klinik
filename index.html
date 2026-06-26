@@ -8,11 +8,11 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
     <!-- Tag khusus agar bisa full screen di iPhone -->
-    <meta name="mobile-web-app-capable" content="yes">
+    <!-- HAPUS: mobile-web-app-capable sudah deprecated di Chrome modern -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Aulia App">
-    <title>Apotek & Klinik Aulia</title>
+    <title>Apotek &amp; Klinik Aulia</title>
     
     <!-- Tailwind CSS CDN dengan Konfigurasi Custom Warna -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,34 +31,58 @@
     </script>
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="h-full bg-slate-50 dark:bg-slate-900 text-gray-800 dark:text-gray-200">
+<!-- FIX SIDEBAR SCROLL MOBILE: overflow-hidden di body mencegah halaman ikut scroll saat sidebar terbuka -->
+<body class="h-full overflow-hidden bg-slate-50 dark:bg-slate-900 text-gray-800 dark:text-gray-200">
 
-    <div class="flex h-full">
-        <!-- SIDEBAR -->
-        <!-- FIX: Ditambah h-full dan overflow-y-auto agar bisa scroll di HP -->
-        <aside id="sidebar" class="hidden lg:flex flex-col w-64 h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-colors duration-200 overflow-y-auto">
+    <div class="flex h-full overflow-hidden">
+        <!-- SIDEBAR DESKTOP (lg ke atas) -->
+        <!-- FIX: Pisahkan sidebar desktop dan mobile. Desktop pakai lg:flex biasa -->
+        <aside id="sidebar" class="hidden lg:flex flex-col w-64 h-full bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-colors duration-200 flex-shrink-0">
             
             <!-- Logo Area -->
             <div class="h-16 flex items-center gap-3 px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
                 <img src="icon-192.png" alt="Logo" class="w-8 h-8 rounded-lg">
                 <div>
                     <h1 class="font-bold text-primary-600 dark:text-primary-400 text-sm leading-tight">Aulia</h1>
-                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Clinic & Pharmacy</p>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Clinic &amp; Pharmacy</p>
                 </div>
             </div>
 
-            <!-- Menu Navigation -->
-            <nav class="flex-1 overflow-y-auto p-4 space-y-6 text-sm" id="sidebar-menu">
+            <!-- Menu Navigation Desktop: overflow-y-auto di sini agar menu bisa scroll -->
+            <nav class="flex-1 min-h-0 overflow-y-auto p-4 space-y-6 text-sm" id="sidebar-menu">
                 <!-- Diisi oleh JS app.js berdasarkan Role -->
             </nav>
         </aside>
 
+        <!-- SIDEBAR MOBILE (overlay, muncul dari kiri) -->
+        <!-- FIX: Sidebar mobile terpisah — posisi fixed, tinggi 100dvh, bisa scroll sendiri -->
+        <aside id="mobile-sidebar" class="fixed inset-y-0 left-0 z-50 w-72 flex flex-col bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-transform duration-300 ease-in-out -translate-x-full lg:hidden">
+            
+            <!-- Logo Area Mobile -->
+            <div class="h-16 flex items-center gap-3 px-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <img src="icon-192.png" alt="Logo" class="w-8 h-8 rounded-lg">
+                <div>
+                    <h1 class="font-bold text-primary-600 dark:text-primary-400 text-sm leading-tight">Aulia</h1>
+                    <p class="text-[10px] text-slate-400 dark:text-slate-500">Clinic &amp; Pharmacy</p>
+                </div>
+                <!-- Tombol close di mobile -->
+                <button onclick="toggleMobileSidebar()" class="ml-auto p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" aria-label="Tutup menu">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Menu Navigation Mobile: overflow-y-auto + flex-1 + min-h-0 agar bisa scroll -->
+            <nav class="flex-1 min-h-0 overflow-y-auto p-4 space-y-6 text-sm" id="mobile-sidebar-menu">
+                <!-- Diisi oleh JS app.js berdasarkan Role — salin dari sidebar-menu -->
+            </nav>
+        </aside>
+
         <!-- MAIN CONTENT -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
             <!-- TOP NAVBAR -->
             <header class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-6 sticky top-0 z-30 flex-shrink-0">
                 <div class="flex items-center gap-4">
-                    <button onclick="toggleMobileSidebar()" class="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                    <button onclick="toggleMobileSidebar()" class="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg" aria-label="Buka menu">
                         <i data-lucide="menu" class="w-5 h-5"></i>
                     </button>
                     <h2 id="page-title" class="font-semibold text-lg">Dashboard</h2>
@@ -66,19 +90,20 @@
                 
                 <div class="flex items-center gap-3">
                     <!-- Toggle Dark Mode -->
-                    <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                    <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" aria-label="Ganti tema">
                         <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-yellow-400"></i>
                         <i data-lucide="moon" class="w-5 h-5 block dark:hidden text-slate-600"></i>
                     </button>
                     <!-- User Info -->
                     <div class="flex items-center gap-2 pl-3 border-l border-slate-200 dark:border-slate-600">
-                        <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 flex items-center justify-center font-bold text-xs" id="user-avatar">A</div>
+                        <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-300 flex items-center justify-center font-bold text-xs" id="user-avatar">?</div>
                         <div class="hidden sm:block">
-                            <p class="text-xs font-medium leading-tight" id="user-name">Admin</p>
-                            <p class="text-[10px] text-slate-400" id="user-role">Keuangan</p>
+                            <p class="text-xs font-medium leading-tight" id="user-name">Memuat...</p>
+                            <p class="text-[10px] text-slate-400" id="user-role">-</p>
                         </div>
                     </div>
-                    <button onclick="AppAuth.logout()" class="p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition" title="Logout">
+                    <!-- FIX: Tambah null-check sebelum panggil AppAuth.logout() -->
+                    <button onclick="if(window.AppAuth) AppAuth.logout()" class="p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition" title="Logout" aria-label="Logout">
                         <i data-lucide="log-out" class="w-5 h-5"></i>
                     </button>
                 </div>
@@ -91,31 +116,77 @@
         </div>
     </div>
 
-    <!-- Mobile Sidebar Overlay -->
-    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden" onclick="toggleMobileSidebar()"></div>
+    <!-- Mobile Sidebar Overlay (backdrop gelap) -->
+    <!-- FIX: z-index harus di bawah sidebar (z-50) tapi di atas konten (z-30) -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-40 hidden" onclick="toggleMobileSidebar()"></div>
 
-    <!-- Library untuk baca Excel -->
+    <!-- FIX XLSX: Hapus duplikat! Hanya load SATU versi xlsx — versi terbaru dari sheetjs.com -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <!-- SCRIPTS -->
-    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+    <!-- FIX: Pin lucide ke versi stabil agar tidak berubah tiba-tiba -->
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.383.0/dist/umd/lucide.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="js/auth.js"></script>
-    <!-- Library Export Excel & PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Library Export PDF (xlsx sudah diload di atas, tidak perlu lagi) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     
     <!-- Script Utama App -->
     <script src="js/app.js"></script>
+
+    <!-- FIX MOBILE SIDEBAR: Script toggle yang benar untuk sidebar mobile terpisah -->
+    <script>
+      function toggleMobileSidebar() {
+        const mobileSidebar = document.getElementById('mobile-sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const isOpen = !mobileSidebar.classList.contains('-translate-x-full');
+
+        if (isOpen) {
+          // Tutup
+          mobileSidebar.classList.add('-translate-x-full');
+          overlay.classList.add('hidden');
+          document.body.style.overflow = '';
+        } else {
+          // Buka
+          mobileSidebar.classList.remove('-translate-x-full');
+          overlay.classList.remove('hidden');
+          // Cegah background scroll saat sidebar terbuka
+          document.body.style.overflow = 'hidden';
+          // Salin menu dari sidebar-menu ke mobile-sidebar-menu jika belum ada isinya
+          const src = document.getElementById('sidebar-menu');
+          const dst = document.getElementById('mobile-sidebar-menu');
+          if (src && dst && dst.children.length === 0 && src.children.length > 0) {
+            dst.innerHTML = src.innerHTML;
+            // Re-render lucide icons di mobile sidebar
+            if (window.lucide) lucide.createIcons();
+          }
+        }
+      }
+
+      // Tutup sidebar mobile jika layar diperbesar ke desktop
+      window.addEventListener('resize', () => {
+        if (window.innerWidth >= 1024) {
+          const mobileSidebar = document.getElementById('mobile-sidebar');
+          const overlay = document.getElementById('sidebar-overlay');
+          if (mobileSidebar) mobileSidebar.classList.add('-translate-x-full');
+          if (overlay) overlay.classList.add('hidden');
+          document.body.style.overflow = '';
+        }
+      });
+    </script>
     
-    <!-- Registrasi Service Worker untuk PWA -->
+    <!-- FIX PWA: Registrasi Service Worker dengan path RELATIF (bukan absolut /sw.js) -->
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW reg failed: ', err));
+          // FIX: './sw.js' bukan '/sw.js' agar bekerja di subfolder manapun
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('SW terdaftar, scope:', reg.scope))
+            .catch(err => console.error('SW gagal daftar:', err));
         });
       }
     </script>

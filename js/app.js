@@ -79,6 +79,13 @@ function toggleTheme() {
 // ROUTING & SIDEBAR MENU
 // ==========================================
 const menuStructure = {
+    const menuStructure = {
+    // TAMBAHKAN BLOK INI DI PALING ATAS
+    utama: [
+        { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard', module: 'dashboard' }
+    ],
+    klinik: [
+        { id: 'antrian', label: 'Antrian', icon: 'list-ordered', module: 'klinik/antrian' },
     klinik: [
         { id: 'antrian', label: 'Antrian', icon: 'list-ordered', module: 'klinik/antrian' },
         { id: 'rekam-medis', label: 'Rekam Medis', icon: 'file-heart', module: 'klinik/rekamMedis' },
@@ -115,10 +122,10 @@ const menuStructure = {
 };
 
 const roleAccess = {
-    klinik: ['klinik', 'manajemen.absensi'], 
-    apotek: ['apotek', 'laporan.pengeluaran', 'manajemen.absensi'], 
-    admin: ['klinik', 'apotek', 'laporan', 'manajemen', 'pengaturan'], 
-    keuangan: ['klinik', 'apotek', 'laporan', 'manajemen', 'keuangan', 'pengaturan'] 
+    klinik: ['utama', 'klinik', 'manajemen.absensi'], 
+    apotek: ['utama', 'apotek', 'laporan.pengeluaran', 'manajemen.absensi'], 
+    admin: ['utama', 'klinik', 'apotek', 'laporan', 'manajemen'], 
+    keuangan: ['utama', 'klinik', 'apotek', 'laporan', 'manajemen', 'keuangan', 'pengaturan'] 
 };
 
 function renderSidebar(role) {
@@ -127,6 +134,7 @@ function renderSidebar(role) {
     let html = '';
     
     const sections = [
+        { key: 'utama', title: 'Menu Utama', icon: 'home' },
         { key: 'klinik', title: 'Operasional Klinik', icon: 'activity' },
         { key: 'apotek', title: 'Operasional Apotek', icon: 'cross' },
         { key: 'laporan', title: 'Laporan', icon: 'file-bar-chart' },

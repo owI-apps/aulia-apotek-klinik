@@ -288,7 +288,7 @@ window.AppKeuanganAkuntansi = {
         html += '<div class="flex justify-between"><span class="text-slate-500 pl-4">Modal Pemilik</span><span>' + Utils.formatRupiah(saldos['3-1000'] * -1) + '</span></div>';
         html += '<div class="flex justify-between"><span class="text-slate-500 pl-4">Prive Pemilik</span><span class="text-red-500">(-) ' + Utils.formatRupiah(saldos['3-2000']) + '</span></div>';
         html += '<div class="flex justify-between"><span class="text-slate-500 pl-4">Laba Bulan Ini</span><span>' + Utils.formatRupiah(labaBersih) + '</span></div>';
-        html += '<div class="flex justify-between border-t pt-2 font-bold"><spanTotal Pasiva</span><span>' + Utils.formatRupiah(totalKewajiban + totalEkuitas) + '</span></div>';
+        html += '<div class="flex justify-between border-t pt-2 font-bold"><span>Total Pasiva</span><span>' + Utils.formatRupiah(totalKewajiban + totalEkuitas) + '</span></div>';
         html += '</div></div>';
 
         html += '</div>';

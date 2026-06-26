@@ -119,7 +119,7 @@ const menuStructure = {
 const roleAccess = {
     klinik: ['utama', 'klinik', 'manajemen.absensi'], 
     apotek: ['utama', 'apotek', 'laporan.pengeluaran', 'manajemen.absensi'], 
-    admin: ['utama', 'klinik', 'apotek', 'laporan', 'manajemen', 'pengaturan'], 
+    admin: ['utama', 'klinik', 'apotek', 'laporan', 'manajemen', 'pengaturan.profil', 'pengaturan.tindakan'],
     keuangan: ['utama', 'klinik', 'apotek', 'laporan', 'manajemen', 'keuangan', 'pengaturan'] 
 };
 

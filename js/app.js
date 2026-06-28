@@ -2,14 +2,23 @@
 // FIREBASE CONFIG (PROJECT BARU)
 // ==========================================
 const firebaseConfig = {
-    apiKey: "AIzaSyD0FKYfxhmf7Rqf56ab0ENVOCUzx4U8gzQ",
-    authDomain: "aulia-apotek-klinik.firebaseapp.com",
-    projectId: "aulia-apotek-klinik",
-    storageBucket: "aulia-apotek-klinik.firebasestorage.app",
-    messagingSenderId: "1083434093638",
-    appId: "1:1083434093638:web:d61f6ca9786ecbd9110e47",
-    measurementId: "G-24HLYRDEGG"
+
+  apiKey: "AIzaSyALaYgptR_MQSVSmQN4ag6ByI5A78SUssA",
+
+  authDomain: "aulia-apotek-klinik-b07f1.firebaseapp.com",
+
+  projectId: "aulia-apotek-klinik-b07f1",
+
+  storageBucket: "aulia-apotek-klinik-b07f1.firebasestorage.app",
+
+  messagingSenderId: "702935233155",
+
+  appId: "1:702935233155:web:f03acb219633ca4df2e1b6",
+
+  measurementId: "G-93Q7J2B077"
+
 };
+
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
@@ -91,12 +100,15 @@ const menuStructure = {
         { id: 'transaksi', label: 'Transaksi', icon: 'shopping-cart', module: 'apotek/transaksi' },
         { id: 'obat', label: 'Obat & Stock', icon: 'pill', module: 'apotek/obat' },
         { id: 'pembelian', label: 'Pembelian', icon: 'truck', module: 'apotek/pembelian' },
-        { id: 'stockOpname', label: 'Stock Opname', icon: 'clipboard-check', module: 'apotek/stockOpname' }
+        { id: 'stockOpname', label: 'Stock Opname', icon: 'clipboard-check', module: 'apotek/stockOpname' },
+        { id: 'retur', label: 'Retur Supplier', icon: 'package-open', module: 'apotek/retur' },
+        { id: 'notifikasi', label: 'Alert Stok', icon: 'bell', module: 'apotek/notifikasi' }
     ],
     laporan: [
         { id: 'hutang', label: 'Hutang Usaha', icon: 'file-text', module: 'laporan/hutang' },
         { id: 'pengeluaran', label: 'Pengeluaran', icon: 'receipt', module: 'laporan/pengeluaran' },
-        { id: 'piutang', label: 'Piutang Karyawan', icon: 'wallet', module: 'laporan/piutang' }
+        { id: 'piutang', label: 'Piutang Karyawan', icon: 'wallet', module: 'laporan/piutang' },
+        { id: 'penjualanHarian', label: 'Penjualan Harian', icon: 'trending-up', module: 'laporan/penjualanHarian' }
     ],
     manajemen: [
         { id: 'karyawan', label: 'Karyawan', icon: 'user-check', module: 'manajemen/karyawan' },
@@ -232,15 +244,8 @@ window.navigateTo = async function(modulePath, title) {
     }
 };
 
-function toggleMobileSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    sidebar.classList.toggle('hidden');
-    sidebar.classList.toggle('fixed');
-    sidebar.classList.toggle('z-50');
-    sidebar.classList.toggle('h-full');
-    overlay.classList.toggle('hidden');
-}
+// FIX: hapus duplikat toggleMobileSidebar() ini — definisi yang benar ada di index.html
+//      (menargetkan #mobile-sidebar). Versi lama menargetkan #sidebar dan menyebabkan bug toggle.
 
 // ==========================================
 // AUTH STATE LISTENER (PERMISSION GATE)
@@ -249,9 +254,12 @@ function startApp(userRole, userName) {
     window.currentRole = userRole;
     window.currentUserName = userName;
     
-    document.getElementById('user-name').textContent = userName;
-    document.getElementById('user-role').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
-    document.getElementById('user-avatar').textContent = userName.charAt(0);
+    // FIX: null/empty-safe (sebelumnya crash bila nama/role kosong)
+    var nameSafe = (userName || 'User').toString();
+    var roleSafe = (userRole || 'user').toString();
+    document.getElementById('user-name').textContent = nameSafe;
+    document.getElementById('user-role').textContent = roleSafe.charAt(0).toUpperCase() + roleSafe.slice(1);
+    document.getElementById('user-avatar').textContent = (nameSafe.trim().charAt(0) || '?').toUpperCase();
     
     renderSidebar(userRole);
     navigateTo('dashboard', 'Dashboard');  
@@ -270,18 +278,20 @@ firebase.auth().onAuthStateChanged(function(user) {
                     firebase.auth().signOut();
                     return;
                 }
-                startApp(userData.role, userData.nama);
+                startApp(userData.role || 'user', userData.nama || (user.email || 'User'));
             } else {
+                // FIX: beri feedback agar user tahu kenapa di-signout.
+                Utils.toast('Profil user tidak ditemukan. Hubungi Admin.', 'error');
                 firebase.auth().signOut();
             }
+        }).catch(function(err) {
+            Utils.toast('Gagal memuat profil: ' + err.message, 'error');
+            firebase.auth().signOut();
         });
     } else {
         window.AppAuth.renderLogin();
     }
 });
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-    });
-}
+// FIX: registrasi Service Worker sudah ditangani di index.html dengan path relatif './sw.js'.
+//      Hapus duplikat di sini agar tidak konflik scope.
